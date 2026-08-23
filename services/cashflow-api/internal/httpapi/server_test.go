@@ -114,3 +114,46 @@ func TestImportTransactionsAndTemplateRoute(t *testing.T) {
 		t.Fatalf("transaction = %#v", transactions[0])
 	}
 }
+
+func TestActivateUserRoute(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	app := application.New(repo)
+	ctx := context.Background()
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "activate-route"); err != nil {
+		t.Fatal(err)
+	}
+	token, admin, err := app.Login(ctx, "admin@example.com", "a secure password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = app.CreateUser(ctx, admin, "operator@example.com", "Operator", "another secure password", "operator", "activate-route"); err != nil {
+		t.Fatal(err)
+	}
+	users, err := repo.ListUsers(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operator := users[1]
+	if err = app.DeactivateUser(ctx, admin, operator.ID, "activate-route"); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(httpapi.New(app, slog.Default()).Handler())
+	defer server.Close()
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/v1/users/"+operator.ID+"/activate", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+}

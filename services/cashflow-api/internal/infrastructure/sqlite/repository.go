@@ -42,27 +42,96 @@ func (r *Repository) Migrate(ctx context.Context) error {
 	}
 	var applied int
 	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=2").Scan(&applied)
-	if err != nil || applied > 0 {
-		return err
-	}
-	if _, err = r.DB.ExecContext(ctx, "PRAGMA foreign_keys=OFF"); err != nil {
-		return err
-	}
-	defer r.DB.ExecContext(context.Background(), "PRAGMA foreign_keys=ON")
-	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `CREATE TABLE users_next (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, password_hash TEXT NOT NULL, recovery_hash TEXT, role TEXT NOT NULL CHECK(role IN ('administrator','manager','operator')), active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+	if applied == 0 {
+		if _, err = r.DB.ExecContext(ctx, "PRAGMA foreign_keys=OFF"); err != nil {
+			return err
+		}
+		tx, err := r.DB.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `CREATE TABLE users_next (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, password_hash TEXT NOT NULL, recovery_hash TEXT, role TEXT NOT NULL CHECK(role IN ('administrator','manager','operator')), active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 INSERT INTO users_next SELECT id,email,display_name,password_hash,recovery_hash,role,active,created_at,updated_at FROM users;
 DROP TABLE users;
 ALTER TABLE users_next RENAME TO users;
 INSERT INTO schema_migrations(version, applied_at) VALUES (2, datetime('now'));`)
-	if err != nil {
-		tx.Rollback()
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		if err = tx.Commit(); err != nil {
+			return err
+		}
+	}
+	if _, err = r.DB.ExecContext(ctx, "PRAGMA foreign_keys=ON"); err != nil {
 		return err
 	}
-	return tx.Commit()
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=3").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		if _, err = r.DB.ExecContext(ctx, "PRAGMA foreign_keys=OFF"); err != nil {
+			return err
+		}
+		tx, err := r.DB.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `CREATE TABLE deletion_requests_next (id TEXT PRIMARY KEY, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, requested_by TEXT NOT NULL REFERENCES users(id), reason TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending','approved','rejected','cancelled')), resolved_by TEXT REFERENCES users(id), created_at TEXT NOT NULL, resolved_at TEXT);
+INSERT INTO deletion_requests_next(id,entity_type,entity_id,requested_by,reason,status,resolved_by,created_at,resolved_at) SELECT id,entity_type,entity_id,requested_by,'',status,resolved_by,created_at,resolved_at FROM deletion_requests;
+DROP TABLE deletion_requests;
+ALTER TABLE deletion_requests_next RENAME TO deletion_requests;
+UPDATE deletion_requests SET status='cancelled', resolved_at=datetime('now') WHERE id IN (SELECT id FROM (SELECT id,ROW_NUMBER() OVER (PARTITION BY entity_type,entity_id ORDER BY created_at DESC) AS position FROM deletion_requests WHERE status='pending') WHERE position>1);
+CREATE UNIQUE INDEX deletion_requests_one_pending ON deletion_requests(entity_type,entity_id) WHERE status='pending';
+INSERT INTO schema_migrations(version, applied_at) VALUES (3, datetime('now'));`)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		if err = tx.Commit(); err != nil {
+			return err
+		}
+	}
+	if _, err = r.DB.ExecContext(ctx, "PRAGMA foreign_keys=ON"); err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=4").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `ALTER TABLE deletion_requests ADD COLUMN requested_by_name TEXT NOT NULL DEFAULT '';
+UPDATE deletion_requests SET requested_by_name=COALESCE((SELECT display_name FROM users WHERE users.id=deletion_requests.requested_by),'Deleted user');
+INSERT INTO schema_migrations(version, applied_at) VALUES (4, datetime('now'));`)
+	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=5").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `ALTER TABLE audit_events ADD COLUMN actor_name TEXT NOT NULL DEFAULT 'System';
+UPDATE audit_events SET actor_name=COALESCE((SELECT display_name FROM users WHERE users.id=audit_events.actor_id),'Deleted user') WHERE actor_id IS NOT NULL;
+INSERT INTO schema_migrations(version, applied_at) VALUES (5, datetime('now'));`)
+	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=6").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `CREATE TABLE saved_filters (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, query TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(user_id,name));
+INSERT INTO schema_migrations(version, applied_at) VALUES (6, datetime('now'));`)
+	}
+	return err
 }
 func (r *Repository) Initialized(ctx context.Context) (bool, error) {
 	var n int
@@ -124,7 +193,18 @@ func (r *Repository) CreateAccount(ctx context.Context, a domain.Account) error 
 	return e
 }
 func (r *Repository) ListAccounts(ctx context.Context) ([]domain.Account, error) {
-	rows, e := r.DB.QueryContext(ctx, "SELECT id,name,type,active FROM accounts WHERE active=1 ORDER BY name")
+	return r.listAccounts(ctx, false)
+}
+func (r *Repository) ListAllAccounts(ctx context.Context) ([]domain.Account, error) {
+	return r.listAccounts(ctx, true)
+}
+func (r *Repository) listAccounts(ctx context.Context, includeInactive bool) ([]domain.Account, error) {
+	query := "SELECT id,name,type,active FROM accounts"
+	if !includeInactive {
+		query += " WHERE active=1"
+	}
+	query += " ORDER BY active DESC,name"
+	rows, e := r.DB.QueryContext(ctx, query)
 	if e != nil {
 		return nil, e
 	}
@@ -175,13 +255,39 @@ func (r *Repository) DeactivateAccount(ctx context.Context, id string) error {
 	}
 	return nil
 }
+func (r *Repository) ActivateAccount(ctx context.Context, id string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE accounts SET active=1,updated_at=? WHERE id=? AND active=0", time.Now().UTC().Format(time.RFC3339Nano), id)
+	return err
+}
+func (r *Repository) DeleteAccount(ctx context.Context, id string) error {
+	_, err := r.DB.ExecContext(ctx, "DELETE FROM accounts WHERE id=? AND active=0", id)
+	return err
+}
+func (r *Repository) AccountUsageCount(ctx context.Context, id string) (int, error) {
+	var count int
+	err := r.DB.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE account_id=?", id).Scan(&count)
+	return count, err
+}
+func (r *Repository) MigrateAccountTransactions(ctx context.Context, fromID, toID string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE transactions SET account_id=?,updated_at=? WHERE account_id=?", toID, time.Now().UTC().Format(time.RFC3339Nano), fromID)
+	return err
+}
 func (r *Repository) CreateCategory(ctx context.Context, c domain.Category) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, e := r.DB.ExecContext(ctx, "INSERT INTO categories(id,name,direction,created_at,updated_at) VALUES(?,?,?,?,?)", c.ID, c.Name, c.Direction, now, now)
 	return e
 }
 func (r *Repository) ListCategories(ctx context.Context) ([]domain.Category, error) {
-	rows, e := r.DB.QueryContext(ctx, "SELECT id,name,direction,active FROM categories WHERE active=1 ORDER BY name")
+	return r.listCategories(ctx, false)
+}
+func (r *Repository) ListAllCategories(ctx context.Context) ([]domain.Category, error) {
+	return r.listCategories(ctx, true)
+}
+func (r *Repository) listCategories(ctx context.Context, includeInactive bool) ([]domain.Category, error) {
+	query := `SELECT c.id,c.name,c.direction,c.active,COUNT(t.id)
+		FROM categories c LEFT JOIN transactions t ON t.category_id=c.id
+		WHERE (? OR c.active=1) GROUP BY c.id,c.name,c.direction,c.active ORDER BY c.active DESC,c.name`
+	rows, e := r.DB.QueryContext(ctx, query, includeInactive)
 	if e != nil {
 		return nil, e
 	}
@@ -190,7 +296,7 @@ func (r *Repository) ListCategories(ctx context.Context) ([]domain.Category, err
 	for rows.Next() {
 		var c domain.Category
 		var x int
-		if e = rows.Scan(&c.ID, &c.Name, &c.Direction, &x); e != nil {
+		if e = rows.Scan(&c.ID, &c.Name, &c.Direction, &x, &c.UsageCount); e != nil {
 			return nil, e
 		}
 		c.Active = x == 1
@@ -232,6 +338,25 @@ func (r *Repository) DeactivateCategory(ctx context.Context, id string) error {
 	}
 	return nil
 }
+func (r *Repository) ActivateCategory(ctx context.Context, id string) error {
+	res, e := r.DB.ExecContext(ctx, "UPDATE categories SET active=1,updated_at=? WHERE id=? AND active=0", time.Now().UTC().Format(time.RFC3339Nano), id)
+	if e != nil {
+		return e
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return errors.New("category is active or does not exist")
+	}
+	return nil
+}
+func (r *Repository) CategoryUsageCount(ctx context.Context, id string) (int, error) {
+	var count int
+	err := r.DB.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE category_id=?", id).Scan(&count)
+	return count, err
+}
+func (r *Repository) MigrateCategoryTransactions(ctx context.Context, fromID, toID string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE transactions SET category_id=?,updated_at=? WHERE category_id=?", toID, time.Now().UTC().Format(time.RFC3339Nano), fromID)
+	return err
+}
 func (r *Repository) CreateTransaction(ctx context.Context, t domain.Transaction) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, e := r.DB.ExecContext(ctx, "INSERT INTO transactions(id,account_id,category_id,direction,amount_minor,currency,description,occurred_on,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", t.ID, t.AccountID, null(t.CategoryID), t.Direction, t.AmountMinor, t.Currency, t.Description, t.OccurredOn, "active", t.CreatedBy, now, now)
@@ -244,21 +369,21 @@ func (r *Repository) ListTransactionsByCreator(ctx context.Context, from, to, cr
 	return r.listTransactions(ctx, from, to, creator)
 }
 func (r *Repository) listTransactions(ctx context.Context, from, to, creator string) ([]domain.Transaction, error) {
-	q := "SELECT id,account_id,COALESCE(category_id,''),direction,amount_minor,currency,description,occurred_on,status,created_by,created_at,updated_at FROM transactions WHERE 1=1"
+	q := "SELECT t.id,t.account_id,COALESCE(t.category_id,''),COALESCE(c.name,''),t.direction,t.amount_minor,t.currency,t.description,t.occurred_on,t.status,t.created_by,t.created_at,t.updated_at FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE 1=1"
 	args := []any{}
 	if from != "" {
-		q += " AND occurred_on>=?"
+		q += " AND t.occurred_on>=?"
 		args = append(args, from)
 	}
 	if to != "" {
-		q += " AND occurred_on<=?"
+		q += " AND t.occurred_on<=?"
 		args = append(args, to)
 	}
 	if creator != "" {
-		q += " AND created_by=?"
+		q += " AND t.created_by=?"
 		args = append(args, creator)
 	}
-	q += " ORDER BY occurred_on DESC,created_at DESC"
+	q += " ORDER BY t.occurred_on DESC,t.created_at DESC"
 	rows, e := r.DB.QueryContext(ctx, q, args...)
 	if e != nil {
 		return nil, e
@@ -267,7 +392,7 @@ func (r *Repository) listTransactions(ctx context.Context, from, to, creator str
 	o := make([]domain.Transaction, 0)
 	for rows.Next() {
 		var t domain.Transaction
-		if e = rows.Scan(&t.ID, &t.AccountID, &t.CategoryID, &t.Direction, &t.AmountMinor, &t.Currency, &t.Description, &t.OccurredOn, &t.Status, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt); e != nil {
+		if e = rows.Scan(&t.ID, &t.AccountID, &t.CategoryID, &t.CategoryName, &t.Direction, &t.AmountMinor, &t.Currency, &t.Description, &t.OccurredOn, &t.Status, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt); e != nil {
 			return nil, e
 		}
 		o = append(o, t)
@@ -296,17 +421,30 @@ func (r *Repository) UpdateTransaction(ctx context.Context, t domain.Transaction
 	}
 	return nil
 }
-func (r *Repository) CreateDeletionRequest(ctx context.Context, id, entityType, entityID, requestedBy string) error {
-	_, err := r.DB.ExecContext(ctx, "INSERT INTO deletion_requests(id,entity_type,entity_id,requested_by,status,created_at) VALUES(?,?,?,?,?,?)", id, entityType, entityID, requestedBy, "pending", time.Now().UTC().Format(time.RFC3339Nano))
+func (r *Repository) CreateDeletionRequest(ctx context.Context, id, entityType, entityID, requestedBy, requestedByName, reason string) error {
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO deletion_requests(id,entity_type,entity_id,requested_by,requested_by_name,reason,status,created_at) VALUES(?,?,?,?,?,?,?,?)", id, entityType, entityID, requestedBy, requestedByName, reason, "pending", time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 func (r *Repository) DeletionRequest(ctx context.Context, id string) (domain.DeletionRequest, error) {
 	var request domain.DeletionRequest
-	err := r.DB.QueryRowContext(ctx, "SELECT id,entity_type,entity_id,requested_by,status,created_at FROM deletion_requests WHERE id=?", id).Scan(&request.ID, &request.EntityType, &request.EntityID, &request.RequestedBy, &request.Status, &request.CreatedAt)
+	err := r.DB.QueryRowContext(ctx, "SELECT id,entity_type,entity_id,requested_by,requested_by_name,reason,status,COALESCE(resolved_by,''),created_at,COALESCE(resolved_at,'') FROM deletion_requests WHERE id=?", id).Scan(&request.ID, &request.EntityType, &request.EntityID, &request.RequestedBy, &request.RequestedByName, &request.Reason, &request.Status, &request.ResolvedBy, &request.CreatedAt, &request.ResolvedAt)
 	return request, err
 }
 func (r *Repository) ListDeletionRequests(ctx context.Context) ([]domain.DeletionRequest, error) {
-	rows, err := r.DB.QueryContext(ctx, "SELECT id,entity_type,entity_id,requested_by,status,created_at FROM deletion_requests ORDER BY created_at DESC")
+	return r.listDeletionRequests(ctx, "")
+}
+func (r *Repository) ListDeletionRequestsByRequester(ctx context.Context, requester string) ([]domain.DeletionRequest, error) {
+	return r.listDeletionRequests(ctx, requester)
+}
+func (r *Repository) listDeletionRequests(ctx context.Context, requester string) ([]domain.DeletionRequest, error) {
+	query := "SELECT id,entity_type,entity_id,requested_by,requested_by_name,reason,status,COALESCE(resolved_by,''),created_at,COALESCE(resolved_at,'') FROM deletion_requests"
+	args := []any{}
+	if requester != "" {
+		query += " WHERE requested_by=?"
+		args = append(args, requester)
+	}
+	query += " ORDER BY created_at DESC"
+	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -314,12 +452,22 @@ func (r *Repository) ListDeletionRequests(ctx context.Context) ([]domain.Deletio
 	items := make([]domain.DeletionRequest, 0)
 	for rows.Next() {
 		var request domain.DeletionRequest
-		if err = rows.Scan(&request.ID, &request.EntityType, &request.EntityID, &request.RequestedBy, &request.Status, &request.CreatedAt); err != nil {
+		if err = rows.Scan(&request.ID, &request.EntityType, &request.EntityID, &request.RequestedBy, &request.RequestedByName, &request.Reason, &request.Status, &request.ResolvedBy, &request.CreatedAt, &request.ResolvedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, request)
 	}
 	return items, rows.Err()
+}
+func (r *Repository) CancelDeletionRequest(ctx context.Context, id string) error {
+	result, err := r.DB.ExecContext(ctx, "UPDATE deletion_requests SET status='cancelled',resolved_at=? WHERE id=? AND status='pending'", time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return errors.New("deletion request is not pending or does not exist")
+	}
+	return nil
 }
 func (r *Repository) ResolveDeletionRequest(ctx context.Context, id, status, resolver string) error {
 	result, err := r.DB.ExecContext(ctx, "UPDATE deletion_requests SET status=?,resolved_by=?,resolved_at=? WHERE id=? AND status='pending'", status, resolver, time.Now().UTC().Format(time.RFC3339Nano), id)
@@ -334,11 +482,69 @@ func (r *Repository) ResolveDeletionRequest(ctx context.Context, id, status, res
 func (r *Repository) Audit(ctx context.Context, id, actor, action, entityType, entityID, correlation string, before, after any) error {
 	b, _ := json.Marshal(before)
 	a, _ := json.Marshal(after)
-	_, e := r.DB.ExecContext(ctx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,correlation_id,before_json,after_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)", id, null(actor), action, entityType, entityID, correlation, string(b), string(a), time.Now().UTC().Format(time.RFC3339Nano))
+	_, e := r.DB.ExecContext(ctx, `INSERT INTO audit_events(id,actor_id,actor_name,action,entity_type,entity_id,correlation_id,before_json,after_json,created_at)
+		VALUES(?,?,COALESCE((SELECT display_name FROM users WHERE id=?),'System'),?,?,?,?,?,?,?)`, id, null(actor), actor, action, entityType, entityID, correlation, string(b), string(a), time.Now().UTC().Format(time.RFC3339Nano))
 	return e
 }
 func (r *Repository) AuditRows(ctx context.Context) (*sql.Rows, error) {
-	return r.DB.QueryContext(ctx, "SELECT id,COALESCE(actor_id,''),action,entity_type,entity_id,correlation_id,before_json,after_json,created_at FROM audit_events ORDER BY created_at DESC")
+	return r.DB.QueryContext(ctx, "SELECT id,COALESCE(actor_id,''),actor_name,action,entity_type,entity_id,correlation_id,before_json,after_json,created_at FROM audit_events ORDER BY created_at DESC")
+}
+func (r *Repository) ListAuditEvents(ctx context.Context) ([]domain.AuditEvent, error) {
+	rows, err := r.DB.QueryContext(ctx, "SELECT a.id,COALESCE(a.actor_id,''),a.actor_name,a.action,a.entity_type,a.entity_id,a.correlation_id,COALESCE(a.before_json,''),COALESCE(a.after_json,''),a.created_at FROM audit_events a ORDER BY a.created_at DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	events := make([]domain.AuditEvent, 0)
+	for rows.Next() {
+		var event domain.AuditEvent
+		if err = rows.Scan(&event.ID, &event.ActorID, &event.ActorName, &event.Action, &event.EntityType, &event.EntityID, &event.CorrelationID, &event.Before, &event.After, &event.CreatedAt); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+func (r *Repository) ListSavedFilters(ctx context.Context, userID string) ([]domain.SavedFilter, error) {
+	rows, err := r.DB.QueryContext(ctx, "SELECT id,name,query,created_at,updated_at FROM saved_filters WHERE user_id=? ORDER BY name", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	filters := make([]domain.SavedFilter, 0)
+	for rows.Next() {
+		var filter domain.SavedFilter
+		if err = rows.Scan(&filter.ID, &filter.Name, &filter.Query, &filter.CreatedAt, &filter.UpdatedAt); err != nil {
+			return nil, err
+		}
+		filters = append(filters, filter)
+	}
+	return filters, rows.Err()
+}
+func (r *Repository) CreateSavedFilter(ctx context.Context, userID string, filter domain.SavedFilter) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO saved_filters(id,user_id,name,query,created_at,updated_at) VALUES(?,?,?,?,?,?)", filter.ID, userID, filter.Name, filter.Query, now, now)
+	return err
+}
+func (r *Repository) UpdateSavedFilter(ctx context.Context, userID, id, name, query string) error {
+	result, err := r.DB.ExecContext(ctx, "UPDATE saved_filters SET name=?,query=?,updated_at=? WHERE id=? AND user_id=?", name, query, time.Now().UTC().Format(time.RFC3339Nano), id, userID)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return errors.New("saved filter does not exist")
+	}
+	return nil
+}
+func (r *Repository) DeleteSavedFilter(ctx context.Context, userID, id string) error {
+	result, err := r.DB.ExecContext(ctx, "DELETE FROM saved_filters WHERE id=? AND user_id=?", id, userID)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return errors.New("saved filter does not exist")
+	}
+	return nil
 }
 func null(v string) any {
 	if v == "" {
@@ -347,7 +553,7 @@ func null(v string) any {
 	return v
 }
 func (r *Repository) EnsureDefaultCategories(ctx context.Context) error {
-	for _, c := range []domain.Category{{"seed-income", "General income", "income", true}, {"seed-expense", "General expense", "expense", true}} {
+	for _, c := range []domain.Category{{ID: "seed-income", Name: "General income", Direction: "income", Active: true}, {ID: "seed-expense", Name: "General expense", Direction: "expense", Active: true}} {
 		_, e := r.DB.ExecContext(ctx, "INSERT OR IGNORE INTO categories(id,name,direction,active,created_at,updated_at) VALUES(?,?,?,?,?,?)", c.ID, c.Name, c.Direction, 1, time.Now().UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
 		if e != nil {
 			return fmt.Errorf("seed category: %w", e)

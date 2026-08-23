@@ -39,7 +39,7 @@ func TestOnboardingLoginTransactionAndAudit(t *testing.T) {
 	if e != nil || len(transactions) != 1 {
 		t.Fatalf("transactions: %v", e)
 	}
-	if e = app.VoidTransaction(ctx, admin, transactions[0].ID, "correlation-test"); e != nil {
+	if e = app.VoidTransaction(ctx, admin, transactions[0].ID, "", "correlation-test"); e != nil {
 		t.Fatal(e)
 	}
 	transactions, _ = repo.ListTransactions(ctx, "", "")
@@ -147,7 +147,7 @@ func TestAccountAndCategoryLifecycleIsAudited(t *testing.T) {
 	if e = app.UpdateCategory(ctx, manager, categories[0].ID, "Revenue", "income", "lifecycle"); e != nil {
 		t.Fatal(e)
 	}
-	if e = app.DeactivateCategory(ctx, manager, categories[0].ID, "lifecycle"); e != nil {
+	if e = app.DeactivateCategory(ctx, manager, categories[0].ID, "", "lifecycle"); e != nil {
 		t.Fatal(e)
 	}
 	var events int
@@ -205,12 +205,25 @@ func TestManagerAndOperatorVoidRequestPermissions(t *testing.T) {
 	if len(transactions) != 1 {
 		t.Fatal("operator movement was not persisted")
 	}
-	if e = app.VoidTransaction(ctx, operator, transactions[0].ID, "roles"); e != nil {
+	if e = app.VoidTransaction(ctx, operator, transactions[0].ID, "duplicate expense", "roles"); e != nil {
 		t.Fatal(e)
 	}
 	requests, e := repo.ListDeletionRequests(ctx)
-	if e != nil || len(requests) != 1 || requests[0].Status != "pending" {
+	if e != nil || len(requests) != 1 || requests[0].Status != "pending" || requests[0].Reason != "duplicate expense" {
 		t.Fatalf("requests = %#v, err = %v", requests, e)
+	}
+	if e = app.VoidTransaction(ctx, operator, transactions[0].ID, "again", "roles"); e == nil {
+		t.Fatal("only one pending deletion request is allowed")
+	}
+	if e = app.CancelDeletionRequest(ctx, operator, requests[0].ID, "roles"); e != nil {
+		t.Fatal(e)
+	}
+	if e = app.VoidTransaction(ctx, operator, transactions[0].ID, "corrected reason", "roles"); e != nil {
+		t.Fatal(e)
+	}
+	requests, e = repo.ListDeletionRequests(ctx)
+	if e != nil || len(requests) != 2 || requests[0].Status != "pending" {
+		t.Fatalf("requests after cancellation = %#v, err = %v", requests, e)
 	}
 	if e = app.ResolveDeletionRequest(ctx, manager, requests[0].ID, "approved", "roles"); e != nil {
 		t.Fatal(e)

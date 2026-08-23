@@ -32,15 +32,19 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /v1/users", s.users)
 	m.HandleFunc("POST /v1/users", s.createUser)
 	m.HandleFunc("POST /v1/users/{id}/deactivate", s.deactivateUser)
+	m.HandleFunc("POST /v1/users/{id}/activate", s.activateUser)
 	m.HandleFunc("DELETE /v1/users/{id}", s.deleteUser)
 	m.HandleFunc("GET /v1/accounts", s.accounts)
 	m.HandleFunc("POST /v1/accounts", s.createAccount)
 	m.HandleFunc("PUT /v1/accounts/{id}", s.updateAccount)
 	m.HandleFunc("POST /v1/accounts/{id}/deactivate", s.deactivateAccount)
+	m.HandleFunc("POST /v1/accounts/{id}/activate", s.activateAccount)
+	m.HandleFunc("DELETE /v1/accounts/{id}", s.deleteAccount)
 	m.HandleFunc("GET /v1/categories", s.categories)
 	m.HandleFunc("POST /v1/categories", s.createCategory)
 	m.HandleFunc("PUT /v1/categories/{id}", s.updateCategory)
 	m.HandleFunc("POST /v1/categories/{id}/deactivate", s.deactivateCategory)
+	m.HandleFunc("POST /v1/categories/{id}/activate", s.activateCategory)
 	m.HandleFunc("GET /v1/transactions", s.transactions)
 	m.HandleFunc("POST /v1/transactions", s.createTransaction)
 	m.HandleFunc("PUT /v1/transactions/{id}", s.updateTransaction)
@@ -48,6 +52,12 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /v1/deletion-requests", s.deletionRequests)
 	m.HandleFunc("POST /v1/deletion-requests/{id}/approve", s.approveDeletionRequest)
 	m.HandleFunc("POST /v1/deletion-requests/{id}/reject", s.rejectDeletionRequest)
+	m.HandleFunc("POST /v1/deletion-requests/{id}/cancel", s.cancelDeletionRequest)
+	m.HandleFunc("GET /v1/audit-events", s.auditEvents)
+	m.HandleFunc("GET /v1/saved-filters", s.savedFilters)
+	m.HandleFunc("POST /v1/saved-filters", s.createSavedFilter)
+	m.HandleFunc("PUT /v1/saved-filters/{id}", s.updateSavedFilter)
+	m.HandleFunc("DELETE /v1/saved-filters/{id}", s.deleteSavedFilter)
 	m.HandleFunc("GET /v1/templates/categories.csv", s.categoryTemplate)
 	m.HandleFunc("GET /v1/templates/transactions.csv", s.transactionTemplate)
 	m.HandleFunc("POST /v1/imports/categories", s.importCategories)
@@ -119,7 +129,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, e)
 		return
 	}
-	t, u, e := s.App.Login(r.Context(), b.Email, b.Password)
+	t, u, e := s.App.Login(r.Context(), b.Email, b.Password, correlation(r.Context()))
 	if e != nil {
 		fail(w, e)
 		return
@@ -127,6 +137,9 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]any{"token": t, "user": u})
 }
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	if actor, ok := s.App.Session(token(r)); ok {
+		_ = s.App.Repo.Audit(r.Context(), uuid.NewString(), actor.ID, "user_logged_out", "user", actor.ID, correlation(r.Context()), nil, nil)
+	}
 	s.App.Logout(token(r))
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -195,6 +208,17 @@ func (s *Server) deactivateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+func (s *Server) activateUser(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.ActivateUser(r.Context(), a, r.PathValue("id"), correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
 func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)
 	if !ok {
@@ -207,10 +231,24 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) accounts(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.actor(w, r); !ok {
+	a, ok := s.actor(w, r)
+	if !ok {
 		return
 	}
-	v, e := s.App.Repo.ListAccounts(r.Context())
+	includeInactive := r.URL.Query().Get("include_inactive") == "true"
+	if includeInactive {
+		if err := s.App.Require(a, domain.RoleAdministrator, domain.RoleManager); err != nil {
+			fail(w, err)
+			return
+		}
+	}
+	var v []domain.Account
+	var e error
+	if includeInactive {
+		v, e = s.App.Repo.ListAllAccounts(r.Context())
+	} else {
+		v, e = s.App.Repo.ListAccounts(r.Context())
+	}
 	if e != nil {
 		fail(w, e)
 		return
@@ -260,11 +298,45 @@ func (s *Server) deactivateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+func (s *Server) activateAccount(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.ActivateAccount(r.Context(), a, r.PathValue("id"), correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (s *Server) deleteAccount(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		ReplacementAccountID string `json:"replacementAccountId"`
+	}
+	if r.Body != nil {
+		_ = jsonBody(r, &body)
+	}
+	if err := s.App.DeleteAccount(r.Context(), a, r.PathValue("id"), body.ReplacementAccountID, correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
 func (s *Server) categories(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.actor(w, r); !ok {
 		return
 	}
-	v, e := s.App.Repo.ListCategories(r.Context())
+	var v []domain.Category
+	var e error
+	if r.URL.Query().Get("include_inactive") == "true" {
+		v, e = s.App.Repo.ListAllCategories(r.Context())
+	} else {
+		v, e = s.App.Repo.ListCategories(r.Context())
+	}
 	if e != nil {
 		fail(w, e)
 		return
@@ -308,7 +380,24 @@ func (s *Server) deactivateCategory(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if e := s.App.DeactivateCategory(r.Context(), a, r.PathValue("id"), correlation(r.Context())); e != nil {
+	var body struct {
+		ReplacementCategoryID string `json:"replacementCategoryId"`
+	}
+	if r.Body != nil {
+		_ = jsonBody(r, &body)
+	}
+	if e := s.App.DeactivateCategory(r.Context(), a, r.PathValue("id"), body.ReplacementCategoryID, correlation(r.Context())); e != nil {
+		fail(w, e)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (s *Server) activateCategory(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if e := s.App.ActivateCategory(r.Context(), a, r.PathValue("id"), correlation(r.Context())); e != nil {
 		fail(w, e)
 		return
 	}
@@ -370,7 +459,13 @@ func (s *Server) voidTransaction(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if e := s.App.VoidTransaction(r.Context(), a, r.PathValue("id"), correlation(r.Context())); e != nil {
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if r.Body != nil {
+		_ = jsonBody(r, &body)
+	}
+	if e := s.App.VoidTransaction(r.Context(), a, r.PathValue("id"), body.Reason, correlation(r.Context())); e != nil {
 		fail(w, e)
 		return
 	}
@@ -385,11 +480,13 @@ func (s *Server) deletionRequests(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if e := s.App.Require(a, domain.RoleAdministrator, domain.RoleManager); e != nil {
-		fail(w, e)
-		return
+	var items []domain.DeletionRequest
+	var e error
+	if a.Role == string(domain.RoleOperator) {
+		items, e = s.App.Repo.ListDeletionRequestsByRequester(r.Context(), a.ID)
+	} else if e = s.App.Require(a, domain.RoleAdministrator, domain.RoleManager); e == nil {
+		items, e = s.App.Repo.ListDeletionRequests(r.Context())
 	}
-	items, e := s.App.Repo.ListDeletionRequests(r.Context())
 	if e != nil {
 		fail(w, e)
 		return
@@ -401,6 +498,94 @@ func (s *Server) approveDeletionRequest(w http.ResponseWriter, r *http.Request) 
 }
 func (s *Server) rejectDeletionRequest(w http.ResponseWriter, r *http.Request) {
 	s.resolveDeletionRequest(w, r, "rejected")
+}
+func (s *Server) cancelDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.CancelDeletionRequest(r.Context(), a, r.PathValue("id"), correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (s *Server) auditEvents(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.Require(a, domain.RoleAdministrator, domain.RoleManager); err != nil {
+		fail(w, err)
+		return
+	}
+	events, err := s.App.Repo.ListAuditEvents(r.Context())
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	write(w, http.StatusOK, events)
+}
+func (s *Server) savedFilters(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	filters, err := s.App.Repo.ListSavedFilters(r.Context(), a.ID)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	write(w, http.StatusOK, filters)
+}
+func (s *Server) createSavedFilter(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Name  string `json:"name"`
+		Query string `json:"query"`
+	}
+	if err := jsonBody(r, &body); err != nil {
+		fail(w, err)
+		return
+	}
+	if err := s.App.SaveFilter(r.Context(), a, body.Name, body.Query, correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+func (s *Server) updateSavedFilter(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Name  string `json:"name"`
+		Query string `json:"query"`
+	}
+	if err := jsonBody(r, &body); err != nil {
+		fail(w, err)
+		return
+	}
+	if err := s.App.UpdateSavedFilter(r.Context(), a, r.PathValue("id"), body.Name, body.Query, correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (s *Server) deleteSavedFilter(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.DeleteSavedFilter(r.Context(), a, r.PathValue("id"), correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) resolveDeletionRequest(w http.ResponseWriter, r *http.Request, decision string) {
 	a, ok := s.actor(w, r)
@@ -551,9 +736,9 @@ func (s *Server) exportAudit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=audit.csv")
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"id", "actor_id", "action", "entity_type", "entity_id", "correlation_id", "before", "after", "created_at"})
+	_ = cw.Write([]string{"id", "actor_id", "actor_name", "action", "entity_type", "entity_id", "correlation_id", "before", "after", "created_at"})
 	for rows.Next() {
-		var v [9]string
+		var v [10]string
 		if e = rows.Scan(&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8]); e == nil {
 			_ = cw.Write(v[:])
 		}

@@ -74,6 +74,31 @@ func validatePassword(v string) error {
 	return nil
 }
 func (s *Service) Initialized(ctx context.Context) (bool, error) { return s.Repo.Initialized(ctx) }
+func (s *Service) SaveFilter(ctx context.Context, actor domain.User, name, query, correlation string) error {
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
+		return errors.New("filter name and query are required")
+	}
+	filter := domain.SavedFilter{ID: uuid.NewString(), Name: strings.TrimSpace(name), Query: strings.TrimSpace(query)}
+	if err := s.Repo.CreateSavedFilter(ctx, actor.ID, filter); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "saved_filter_created", "saved_filter", filter.ID, correlation, nil, map[string]string{"name": filter.Name})
+}
+func (s *Service) UpdateSavedFilter(ctx context.Context, actor domain.User, id, name, query, correlation string) error {
+	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
+		return errors.New("filter name and query are required")
+	}
+	if err := s.Repo.UpdateSavedFilter(ctx, actor.ID, id, strings.TrimSpace(name), strings.TrimSpace(query)); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "saved_filter_updated", "saved_filter", id, correlation, nil, map[string]string{"name": strings.TrimSpace(name)})
+}
+func (s *Service) DeleteSavedFilter(ctx context.Context, actor domain.User, id, correlation string) error {
+	if err := s.Repo.DeleteSavedFilter(ctx, actor.ID, id); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "saved_filter_deleted", "saved_filter", id, correlation, nil, nil)
+}
 func (s *Service) Initialize(ctx context.Context, email, name, password, correlation string) (string, error) {
 	ok, e := s.Initialized(ctx)
 	if e != nil {
@@ -110,7 +135,7 @@ func (s *Service) Initialize(ctx context.Context, email, name, password, correla
 	e = s.Repo.Audit(ctx, uuid.NewString(), id, "administrator_initialized", "user", id, correlation, nil, map[string]string{"email": email})
 	return code, e
 }
-func (s *Service) Login(ctx context.Context, email, password string) (string, domain.User, error) {
+func (s *Service) Login(ctx context.Context, email, password string, correlations ...string) (string, domain.User, error) {
 	u, h, _, e := s.Repo.UserCredentials(ctx, strings.ToLower(email))
 	if e != nil || !verify(password, h) {
 		return "", domain.User{}, errors.New("invalid email or password")
@@ -119,6 +144,13 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, do
 	s.mu.Lock()
 	s.sessions[token] = u
 	s.mu.Unlock()
+	correlation := ""
+	if len(correlations) > 0 {
+		correlation = correlations[0]
+	}
+	if e = s.Repo.Audit(ctx, uuid.NewString(), u.ID, "user_logged_in", "user", u.ID, correlation, nil, map[string]string{"email": u.Email}); e != nil {
+		return "", domain.User{}, e
+	}
 	return token, u, nil
 }
 func (s *Service) Session(token string) (domain.User, bool) {
@@ -218,6 +250,22 @@ func (s *Service) DeactivateUser(ctx context.Context, actor domain.User, id, cor
 	s.invalidateUserSessions(id)
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "user_deactivated", "user", id, correlation, target, map[string]bool{"active": false})
 }
+func (s *Service) ActivateUser(ctx context.Context, actor domain.User, id, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return err
+	}
+	target, err := s.Repo.User(ctx, id)
+	if err != nil {
+		return err
+	}
+	if target.Active {
+		return errors.New("user is already active")
+	}
+	if err = s.Repo.SetUserActive(ctx, id, true); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "user_activated", "user", id, correlation, target, map[string]bool{"active": true})
+}
 func (s *Service) DeleteUser(ctx context.Context, actor domain.User, id, correlation string) error {
 	target, err := s.validateUserAdministration(ctx, actor, id)
 	if err != nil {
@@ -276,6 +324,56 @@ func (s *Service) DeactivateAccount(ctx context.Context, actor domain.User, id, 
 	after.Active = false
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "account_deactivated", "account", id, correlation, before, after)
 }
+func (s *Service) ActivateAccount(ctx context.Context, actor domain.User, id, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); err != nil {
+		return err
+	}
+	before, err := s.Repo.Account(ctx, id)
+	if err != nil || before.Active {
+		return errors.New("account is active or does not exist")
+	}
+	if err = s.Repo.ActivateAccount(ctx, id); err != nil {
+		return err
+	}
+	after := before
+	after.Active = true
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "account_activated", "account", id, correlation, before, after)
+}
+func (s *Service) DeleteAccount(ctx context.Context, actor domain.User, id, replacementID, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); err != nil {
+		return err
+	}
+	before, err := s.Repo.Account(ctx, id)
+	if err != nil || before.Active {
+		return errors.New("deactivate the account before deleting it")
+	}
+	usage, err := s.Repo.AccountUsageCount(ctx, id)
+	if err != nil {
+		return err
+	}
+	if usage > 0 {
+		if replacementID == "" {
+			return errors.New("account has recorded movements; select a replacement account")
+		}
+		if replacementID == id {
+			return errors.New("replacement account must be different")
+		}
+		replacement, err := s.Repo.Account(ctx, replacementID)
+		if err != nil || !replacement.Active {
+			return errors.New("replacement account is inactive or does not exist")
+		}
+		if err = s.Repo.MigrateAccountTransactions(ctx, id, replacementID); err != nil {
+			return err
+		}
+		if err = s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "account_movements_migrated", "account", id, correlation, map[string]any{"from": id, "count": usage}, map[string]any{"to": replacementID, "count": usage}); err != nil {
+			return err
+		}
+	}
+	if err = s.Repo.DeleteAccount(ctx, id); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "account_deleted", "account", id, correlation, before, nil)
+}
 func (s *Service) CreateCategory(ctx context.Context, actor domain.User, name, direction, correlation string) error {
 	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager, domain.RoleOperator); e != nil {
 		return e
@@ -322,7 +420,7 @@ func (s *Service) UpdateCategory(ctx context.Context, actor domain.User, id, nam
 	}
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "category_updated", "category", id, correlation, before, after)
 }
-func (s *Service) DeactivateCategory(ctx context.Context, actor domain.User, id, correlation string) error {
+func (s *Service) DeactivateCategory(ctx context.Context, actor domain.User, id, replacementID, correlation string) error {
 	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
 		return e
 	}
@@ -330,12 +428,49 @@ func (s *Service) DeactivateCategory(ctx context.Context, actor domain.User, id,
 	if e != nil || !before.Active {
 		return errors.New("category is inactive or does not exist")
 	}
+	usage, e := s.Repo.CategoryUsageCount(ctx, id)
+	if e != nil {
+		return e
+	}
+	if usage > 0 {
+		if replacementID == "" {
+			return errors.New("category is assigned to movements; select a replacement category")
+		}
+		if replacementID == id {
+			return errors.New("replacement category must be different")
+		}
+		replacement, e := s.Repo.Category(ctx, replacementID)
+		if e != nil || !replacement.Active {
+			return errors.New("replacement category is inactive or does not exist")
+		}
+		if e = s.Repo.MigrateCategoryTransactions(ctx, id, replacementID); e != nil {
+			return e
+		}
+		if e = s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "category_movements_migrated", "category", id, correlation, map[string]any{"from": id, "count": usage}, map[string]any{"to": replacementID, "count": usage}); e != nil {
+			return e
+		}
+	}
 	if e = s.Repo.DeactivateCategory(ctx, id); e != nil {
 		return e
 	}
 	after := before
 	after.Active = false
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "category_deactivated", "category", id, correlation, before, after)
+}
+func (s *Service) ActivateCategory(ctx context.Context, actor domain.User, id, correlation string) error {
+	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
+		return e
+	}
+	before, e := s.Repo.Category(ctx, id)
+	if e != nil || before.Active {
+		return errors.New("category is active or does not exist")
+	}
+	if e = s.Repo.ActivateCategory(ctx, id); e != nil {
+		return e
+	}
+	after := before
+	after.Active = true
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "category_activated", "category", id, correlation, before, after)
 }
 func (s *Service) CreateTransaction(ctx context.Context, actor domain.User, t domain.Transaction, correlation string) error {
 	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager, domain.RoleOperator); e != nil {
@@ -388,9 +523,9 @@ func (s *Service) ImportTransactions(ctx context.Context, actor domain.User, row
 	}
 	return nil
 }
-func (s *Service) VoidTransaction(ctx context.Context, actor domain.User, id, correlation string) error {
+func (s *Service) VoidTransaction(ctx context.Context, actor domain.User, id, reason, correlation string) error {
 	if actor.Role == string(domain.RoleOperator) {
-		return s.RequestTransactionVoid(ctx, actor, id, correlation)
+		return s.RequestTransactionVoid(ctx, actor, id, reason, correlation)
 	}
 	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
 		return e
@@ -400,7 +535,11 @@ func (s *Service) VoidTransaction(ctx context.Context, actor domain.User, id, co
 	}
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_voided", "transaction", id, correlation, map[string]string{"status": "active"}, map[string]string{"status": "voided"})
 }
-func (s *Service) RequestTransactionVoid(ctx context.Context, actor domain.User, id, correlation string) error {
+func (s *Service) RequestTransactionVoid(ctx context.Context, actor domain.User, id, reason, correlation string) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return errors.New("a deletion request reason is required")
+	}
 	items, err := s.Repo.ListTransactionsByCreator(ctx, "", "", actor.ID)
 	if err != nil {
 		return err
@@ -416,10 +555,26 @@ func (s *Service) RequestTransactionVoid(ctx context.Context, actor domain.User,
 		return errors.New("you can only request voiding your active movements")
 	}
 	requestID := uuid.NewString()
-	if err = s.Repo.CreateDeletionRequest(ctx, requestID, "transaction", id, actor.ID); err != nil {
+	if err = s.Repo.CreateDeletionRequest(ctx, requestID, "transaction", id, actor.ID, actor.DisplayName, reason); err != nil {
 		return err
 	}
-	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_void_requested", "deletion_request", requestID, correlation, nil, map[string]string{"transaction_id": id})
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_void_requested", "deletion_request", requestID, correlation, nil, map[string]string{"transaction_id": id, "reason": reason})
+}
+func (s *Service) CancelDeletionRequest(ctx context.Context, actor domain.User, id, correlation string) error {
+	request, err := s.Repo.DeletionRequest(ctx, id)
+	if err != nil {
+		return err
+	}
+	if request.RequestedBy != actor.ID {
+		return errors.New("you can only cancel your own deletion request")
+	}
+	if request.Status != "pending" {
+		return errors.New("deletion request is not pending")
+	}
+	if err = s.Repo.CancelDeletionRequest(ctx, id); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "deletion_request_cancelled", "deletion_request", id, correlation, request, map[string]string{"status": "cancelled"})
 }
 func (s *Service) ResolveDeletionRequest(ctx context.Context, actor domain.User, id, decision, correlation string) error {
 	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
