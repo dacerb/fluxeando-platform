@@ -1,0 +1,16 @@
+.notice,
+.error {
+  animation: notification-enter 180ms ease-out both;
+}
+
+@keyframes notification-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

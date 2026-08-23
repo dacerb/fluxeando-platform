@@ -1,0 +1,16 @@
+{
+  "name": "@cashflow/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"cd ../../services/cashflow-api && go run ./cmd/api\" \"wait-on http://127.0.0.1:5173 && tsc -p tsconfig.main.json && cross-env CASHFLOW_API_URL=http://127.0.0.1:8787 electron .\"",
+    "web": "node ../../scripts/web-dev.mjs",
+    "build": "vite build && tsc -p tsconfig.main.json",
+    "package": "sh ../../scripts/build-backend.sh && npm run build && electron-builder",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": { "@vitejs/plugin-react": "^4.3.4", "vite": "^6.0.5", "react": "^18.3.1", "react-dom": "^18.3.1", "typescript": "^5.7.2" },
+  "devDependencies": { "@types/node": "^22.10.2", "@types/react": "^18.3.12", "@types/react-dom": "^18.3.1", "concurrently": "^9.1.0", "cross-env": "^7.0.3", "electron": "^33.2.0", "electron-builder": "^25.1.8", "wait-on": "^8.0.1" },
+  "build": { "appId": "com.cashflow.desktop", "productName": "CashFlow", "files": ["dist/**", "renderer/**", "package.json"], "extraResources": [{ "from": "resources/bin/${os}-${arch}", "to": "cashflow-api" }], "mac": { "target": ["dmg"] }, "win": { "target": ["nsis"] } }
+}

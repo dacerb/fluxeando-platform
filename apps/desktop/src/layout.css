@@ -1,0 +1,18 @@
+/* Mobile-first record form layout. */
+.record-card{padding:24px}
+.record-card h2{margin:0 0 24px;font-size:1.6rem;letter-spacing:-.02em}
+.transaction{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.transaction input,.transaction select,.transaction button{min-height:52px;font-size:1rem}
+.transaction-save{width:100%}
+
+@media (min-width:720px){
+  .record-card{padding:42px}
+  .record-card h2{font-size:2rem;margin-bottom:32px}
+  .transaction{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+  .transaction-description{grid-column:1}
+  .transaction-save{grid-column:2}
+}
+
+@media (min-width:1200px){
+  .record-card{padding:42px}
+}
