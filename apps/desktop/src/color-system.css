@@ -58,7 +58,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-content { background: var(--ui-canvas) !important; }
 
 .app-sidebar {
-  background: var(--ui-sidebar) !important;
+  background: #1f1717 !important;
   color: var(--ui-on-sidebar) !important;
 }
 .sidebar-brand, .sidebar-brand strong, .app-sidebar .tabs button,
@@ -71,13 +71,27 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   color: var(--ui-on-sidebar) !important;
 }
 .app-sidebar .tabs button.selected, .app-shell.dark .app-sidebar .tabs button.selected {
-  background: var(--ui-selected) !important;
-  color: var(--ui-text) !important;
-  box-shadow: none !important;
+  position: relative;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-accent) 88%, #1f1717), color-mix(in srgb, var(--ui-accent) 56%, #1f1717)) !important;
+  color: #ffffff !important;
+  box-shadow: inset 5px 0 0 var(--ui-accent), 0 8px 18px color-mix(in srgb, var(--ui-accent) 28%, transparent) !important;
 }
 
 .app-content > header { border-color: var(--ui-border) !important; }
-.eyebrow { color: var(--ui-accent) !important; }
+.eyebrow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  width: fit-content;
+  margin: 0 0 8px !important;
+  padding: 5px 10px !important;
+  color: var(--ui-accent) !important;
+  background: var(--ui-accent-container) !important;
+  border-radius: 8px;
+  letter-spacing: .08em;
+  text-transform: none !important;
+}
+.eyebrow strong { font-weight: 850; }
 .app-content .card, .app-content .material-card, .material-card {
   background: var(--ui-surface-container) !important;
   color: var(--ui-text) !important;
@@ -392,6 +406,16 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
 }
 .login-transition > strong { color: var(--ui-accent) !important; }
 .splash-mark img { width: min(260px, 68vw) !important; height: auto !important; }
+
+/* El recurso de marca debe verse sin una tarjeta o marco adicional. */
+.sidebar-logo,
+.brand-logo {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.sidebar-logo img { border-radius: 0 !important; }
 @media (max-width: 700px) {
   .runtime-logs { width: 100%; max-height: 60vh; margin-top: 24px; padding: 14px; }
   .runtime-log-row { grid-template-columns: 60px 42px minmax(0, 1fr); }
