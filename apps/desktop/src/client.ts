@@ -19,6 +19,11 @@ export async function request<T>(path: string, token?: string, method = 'GET', b
   if (text.trim()) {
     try { payload = JSON.parse(text) as { error?: string }; } catch { payload = undefined; }
   }
-  if (!response.ok) throw new Error(payload?.error || text || 'Request failed');
+  if (!response.ok) {
+    if (response.status === 404 && text.includes('404 page not found')) {
+      throw new Error('The local API is from another version. Stop the current development processes and start CashFlow with the web command again.');
+    }
+    throw new Error(payload?.error || text || 'Request failed');
+  }
   return (payload ?? text) as T;
 }
