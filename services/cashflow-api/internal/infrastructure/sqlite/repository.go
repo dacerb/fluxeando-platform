@@ -131,6 +131,17 @@ INSERT INTO schema_migrations(version, applied_at) VALUES (5, datetime('now'));`
 		_, err = r.DB.ExecContext(ctx, `CREATE TABLE saved_filters (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, query TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(user_id,name));
 INSERT INTO schema_migrations(version, applied_at) VALUES (6, datetime('now'));`)
 	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=7").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;
+INSERT INTO schema_migrations(version, applied_at) VALUES (7, datetime('now'));`)
+	}
 	return err
 }
 func (r *Repository) Initialized(ctx context.Context) (bool, error) {
@@ -140,21 +151,21 @@ func (r *Repository) Initialized(ctx context.Context) (bool, error) {
 }
 func (r *Repository) CreateUser(ctx context.Context, id, email, name, hash, recovery, role string) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err := r.DB.ExecContext(ctx, "INSERT INTO users(id,email,display_name,password_hash,recovery_hash,role,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", id, email, name, hash, recovery, role, now, now)
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO users(id,email,display_name,password_hash,recovery_hash,role,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,0,?,?)", id, email, name, hash, recovery, role, now, now)
 	return err
 }
 func (r *Repository) UserCredentials(ctx context.Context, email string) (domain.User, string, string, error) {
 	var u domain.User
 	var hash, recovery string
-	err := r.DB.QueryRowContext(ctx, "SELECT id,email,display_name,role,active,password_hash,COALESCE(recovery_hash,'') FROM users WHERE email=? AND active=1", email).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &hash, &recovery)
+	err := r.DB.QueryRowContext(ctx, "SELECT id,email,display_name,role,active,must_change_password,password_hash,COALESCE(recovery_hash,'') FROM users WHERE email=? AND active=1", email).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword, &hash, &recovery)
 	return u, hash, recovery, err
 }
-func (r *Repository) UpdatePassword(ctx context.Context, id, hash string) error {
-	_, err := r.DB.ExecContext(ctx, "UPDATE users SET password_hash=?, recovery_hash=NULL, updated_at=? WHERE id=?", hash, time.Now().UTC().Format(time.RFC3339Nano), id)
+func (r *Repository) UpdatePassword(ctx context.Context, id, hash string, mustChange bool) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE users SET password_hash=?, recovery_hash=NULL, must_change_password=?, updated_at=? WHERE id=?", hash, mustChange, time.Now().UTC().Format(time.RFC3339Nano), id)
 	return err
 }
 func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {
-	rows, e := r.DB.QueryContext(ctx, "SELECT id,email,display_name,role,active FROM users ORDER BY active DESC, email")
+	rows, e := r.DB.QueryContext(ctx, "SELECT id,email,display_name,role,active,must_change_password FROM users ORDER BY active DESC, email")
 	if e != nil {
 		return nil, e
 	}
@@ -162,7 +173,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {
 	out := make([]domain.User, 0)
 	for rows.Next() {
 		var u domain.User
-		if e = rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active); e != nil {
+		if e = rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword); e != nil {
 			return nil, e
 		}
 		out = append(out, u)
@@ -171,7 +182,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {
 }
 func (r *Repository) User(ctx context.Context, id string) (domain.User, error) {
 	var u domain.User
-	err := r.DB.QueryRowContext(ctx, "SELECT id,email,display_name,role,active FROM users WHERE id=?", id).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active)
+	err := r.DB.QueryRowContext(ctx, "SELECT id,email,display_name,role,active,must_change_password FROM users WHERE id=?", id).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword)
 	return u, err
 }
 func (r *Repository) SetUserActive(ctx context.Context, id string, active bool) error {

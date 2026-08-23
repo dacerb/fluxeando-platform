@@ -16,11 +16,12 @@ const (
 )
 
 type User struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"displayName"`
-	Role        string `json:"role"`
-	Active      bool   `json:"active"`
+	ID                 string `json:"id"`
+	Email              string `json:"email"`
+	DisplayName        string `json:"displayName"`
+	Role               string `json:"role"`
+	Active             bool   `json:"active"`
+	MustChangePassword bool   `json:"mustChangePassword"`
 }
 type DeletionRequest struct {
 	ID              string `json:"id"`

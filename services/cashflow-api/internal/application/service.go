@@ -181,7 +181,7 @@ func (s *Service) Recover(ctx context.Context, email, code, newPassword, correla
 	if e != nil {
 		return e
 	}
-	if e = s.Repo.UpdatePassword(ctx, u.ID, h); e != nil {
+	if e = s.Repo.UpdatePassword(ctx, u.ID, h, false); e != nil {
 		return e
 	}
 	return s.Repo.Audit(ctx, uuid.NewString(), u.ID, "password_recovered", "user", u.ID, correlation, nil, map[string]string{"email": u.Email})
@@ -195,6 +195,10 @@ func (s *Service) Require(u domain.User, roles ...domain.Role) error {
 	return errors.New("forbidden")
 }
 func (s *Service) CreateUser(ctx context.Context, actor domain.User, email, name, password, role, correlation string) error {
+	return s.CreateUserWithPasswordPolicy(ctx, actor, email, name, password, role, false, correlation)
+}
+
+func (s *Service) CreateUserWithPasswordPolicy(ctx context.Context, actor domain.User, email, name, password, role string, forcePasswordChange bool, correlation string) error {
 	if e := s.Require(actor, domain.RoleAdministrator); e != nil {
 		return e
 	}
@@ -212,7 +216,60 @@ func (s *Service) CreateUser(ctx context.Context, actor domain.User, email, name
 	if e = s.Repo.CreateUser(ctx, id, strings.ToLower(email), name, h, "", role); e != nil {
 		return e
 	}
-	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "user_created", "user", id, correlation, nil, map[string]string{"email": email, "role": role})
+	if forcePasswordChange {
+		if e = s.Repo.UpdatePassword(ctx, id, h, true); e != nil {
+			return e
+		}
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "user_created", "user", id, correlation, nil, map[string]any{"email": email, "role": role, "passwordGenerated": forcePasswordChange, "mustChangePassword": forcePasswordChange})
+}
+
+func (s *Service) ChangeOwnPassword(ctx context.Context, actor domain.User, currentPassword, newPassword, correlation string) error {
+	if err := validatePassword(newPassword); err != nil {
+		return err
+	}
+	_, currentHash, _, err := s.Repo.UserCredentials(ctx, actor.Email)
+	if err != nil || !verify(currentPassword, currentHash) {
+		return errors.New("current password is invalid")
+	}
+	h, err := hash(newPassword)
+	if err != nil {
+		return err
+	}
+	if err = s.Repo.UpdatePassword(ctx, actor.ID, h, false); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	for token, user := range s.sessions {
+		if user.ID == actor.ID {
+			user.MustChangePassword = false
+			s.sessions[token] = user
+		}
+	}
+	s.mu.Unlock()
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "password_changed", "user", actor.ID, correlation, nil, map[string]any{"forced": false})
+}
+
+func (s *Service) ResetUserPassword(ctx context.Context, actor domain.User, id, newPassword, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return err
+	}
+	if err := validatePassword(newPassword); err != nil {
+		return err
+	}
+	target, err := s.Repo.User(ctx, id)
+	if err != nil {
+		return err
+	}
+	h, err := hash(newPassword)
+	if err != nil {
+		return err
+	}
+	if err = s.Repo.UpdatePassword(ctx, id, h, true); err != nil {
+		return err
+	}
+	s.invalidateUserSessions(id)
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "password_reset_by_administrator", "user", id, correlation, nil, map[string]any{"email": target.Email, "mustChangePassword": true})
 }
 func (s *Service) invalidateUserSessions(userID string) {
 	s.mu.Lock()

@@ -434,6 +434,9 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
 .runtime-log-filters { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 10px; }
 .runtime-log-list { min-height: 0; overflow: auto; border-top: 1px solid var(--ui-border); }
 .runtime-log-row { display: grid; grid-template-columns: 76px 48px minmax(0, 1fr) minmax(160px, auto); align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--ui-border); font-size: .8rem; }
+.runtime-log-row { cursor: pointer; }
+.runtime-log-row:hover, .runtime-log-row:focus-visible { background: var(--ui-surface-variant); outline: none; }
+.runtime-log-detail { max-height: 55vh; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; font: .8rem/1.5 'Roboto Mono', monospace; }
 .runtime-log-row time, .runtime-log-row small { color: var(--ui-text-muted); }
 .runtime-log-row code { min-width: 0; overflow: hidden; margin: 0; padding: 0; color: var(--ui-text); background: transparent; border-radius: 0; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-log-status { display: inline-grid; place-items: center; min-height: 24px; border-radius: 12px; color: var(--ui-on-accent-container); background: var(--ui-accent-container); font-weight: 750; }

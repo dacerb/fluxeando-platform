@@ -32,6 +32,7 @@ type logEvent struct {
 	Layer         string    `json:"layer"`
 	Operation     string    `json:"operation"`
 	DurationMS    int64     `json:"duration_ms"`
+	ResponseBody  string    `json:"response_body,omitempty"`
 }
 
 type logStore struct {
@@ -71,8 +72,10 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/auth/login", s.login)
 	m.HandleFunc("POST /v1/auth/logout", s.logout)
 	m.HandleFunc("POST /v1/auth/recover", s.recover)
+	m.HandleFunc("POST /v1/auth/change-password", s.changePassword)
 	m.HandleFunc("GET /v1/users", s.users)
 	m.HandleFunc("POST /v1/users", s.createUser)
+	m.HandleFunc("POST /v1/users/{id}/password", s.resetUserPassword)
 	m.HandleFunc("POST /v1/users/{id}/deactivate", s.deactivateUser)
 	m.HandleFunc("POST /v1/users/{id}/activate", s.activateUser)
 	m.HandleFunc("DELETE /v1/users/{id}", s.deleteUser)
@@ -115,6 +118,7 @@ type correlationKey struct{}
 type statusWriter struct {
 	http.ResponseWriter
 	status int
+	body   []byte
 }
 
 func (writer *statusWriter) WriteHeader(status int) {
@@ -126,7 +130,15 @@ func (writer *statusWriter) Write(body []byte) (int, error) {
 	if writer.status == 0 {
 		writer.status = http.StatusOK
 	}
+	writer.body = append(writer.body, body...)
 	return writer.ResponseWriter.Write(body)
+}
+
+func responseForLog(path string, body []byte) string {
+	if len(body) == 0 || path == "/v1/auth/login" || path == "/v1/setup/initialize" {
+		return "[redacted]"
+	}
+	return string(body)
 }
 
 func correlation(ctx context.Context) string { v, _ := ctx.Value(correlationKey{}).(string); return v }
@@ -144,7 +156,7 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 			response.status = http.StatusOK
 		}
 		duration := time.Since(start).Milliseconds()
-		event := logEvent{Timestamp: time.Now().UTC(), Level: "info", Message: "request completed", StatusCode: response.status, CorrelationID: cid, Component: "api", Layer: "router", Operation: r.Method + " " + r.URL.Path, DurationMS: duration}
+		event := logEvent{Timestamp: time.Now().UTC(), Level: "info", Message: "request completed", StatusCode: response.status, CorrelationID: cid, Component: "api", Layer: "router", Operation: r.Method + " " + r.URL.Path, DurationMS: duration, ResponseBody: responseForLog(r.URL.Path, response.body)}
 		if r.URL.Path != "/v1/logs" {
 			s.Logs.append(event)
 		}
@@ -266,16 +278,51 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var b struct{ Email, DisplayName, Password, Role string }
+	var b struct {
+		Email, DisplayName, Password, Role string
+		ForcePasswordChange                bool `json:"forcePasswordChange"`
+	}
 	if e := jsonBody(r, &b); e != nil {
 		fail(w, e)
 		return
 	}
-	if e := s.App.CreateUser(r.Context(), a, b.Email, b.DisplayName, b.Password, b.Role, correlation(r.Context())); e != nil {
+	if e := s.App.CreateUserWithPasswordPolicy(r.Context(), a, b.Email, b.DisplayName, b.Password, b.Role, b.ForcePasswordChange, correlation(r.Context())); e != nil {
 		fail(w, e)
 		return
 	}
 	w.WriteHeader(201)
+}
+func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var b struct{ CurrentPassword, NewPassword string }
+	if e := jsonBody(r, &b); e != nil {
+		fail(w, e)
+		return
+	}
+	if e := s.App.ChangeOwnPassword(r.Context(), a, b.CurrentPassword, b.NewPassword, correlation(r.Context())); e != nil {
+		fail(w, e)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var b struct{ NewPassword string }
+	if e := jsonBody(r, &b); e != nil {
+		fail(w, e)
+		return
+	}
+	if e := s.App.ResetUserPassword(r.Context(), a, r.PathValue("id"), b.NewPassword, correlation(r.Context())); e != nil {
+		fail(w, e)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) deactivateUser(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)
