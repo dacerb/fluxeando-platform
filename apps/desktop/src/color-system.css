@@ -37,7 +37,12 @@
 
 body[data-color-mode='dark'] {
   --ui-sidebar: var(--m3-surface-container-low);
+  --ui-selected: color-mix(in srgb, var(--ui-accent) 26%, var(--ui-surface-container-high));
   --ui-on-sidebar: var(--m3-on-surface);
+}
+
+body[data-color-mode='light'] {
+  --ui-selected: color-mix(in srgb, var(--ui-accent) 30%, var(--ui-surface-container-high));
 }
 
 html, body, #root { min-height: 100%; }
@@ -50,6 +55,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   background: var(--ui-canvas) !important;
   color: var(--ui-text) !important;
 }
+.app-content { background: var(--ui-canvas) !important; }
 
 .app-sidebar {
   background: var(--ui-sidebar) !important;
@@ -261,7 +267,7 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
   background: var(--ui-accent-container) !important;
   color: var(--ui-on-accent-container) !important;
   border-color: var(--ui-accent) !important;
-  box-shadow: 0 0 0 3px var(--ui-focus-ring), 0 10px 22px var(--ui-shadow) !important;
+  box-shadow: 0 0 0 3px var(--ui-focus-ring), 0 10px 22px var(--ui-shadow), inset 0 0 0 1px var(--ui-accent) !important;
 }
 .app-content .palette-option small,
 .app-content .typography-option small { color: var(--ui-text-muted) !important; }
