@@ -74,6 +74,15 @@ func validatePassword(v string) error {
 	return nil
 }
 func (s *Service) Initialized(ctx context.Context) (bool, error) { return s.Repo.Initialized(ctx) }
+func (s *Service) RecordPreferenceChange(ctx context.Context, actor domain.User, kind string, before, after map[string]string, correlation string) error {
+	if kind != "appearance" && kind != "language" {
+		return errors.New("unsupported preference change")
+	}
+	if len(after) == 0 {
+		return errors.New("preference change is required")
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, kind+"_updated", "user_preference", actor.ID+":"+kind, correlation, before, after)
+}
 func (s *Service) SaveFilter(ctx context.Context, actor domain.User, name, query, correlation string) error {
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(query) == "" {
 		return errors.New("filter name and query are required")

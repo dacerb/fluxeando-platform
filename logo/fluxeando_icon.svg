@@ -1,0 +1,17 @@
+<svg width="300" height="300" viewBox="35 78 230 170" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Ícono de Fluxeando</title>
+<desc>Dos ondas estilizadas tipo ola griega, una moneda en el punto de cruce, y una greca griega debajo, en trazos oscuros sobre fondo transparente.</desc>
+
+<path d="M50 130 C 90 90, 130 90, 150 130 C 170 170, 210 170, 250 130"
+  fill="none" stroke="#241209" stroke-width="10" stroke-linecap="round"/>
+
+<path d="M50 175 C 90 135, 130 135, 150 175 C 170 215, 210 215, 250 175"
+  fill="none" stroke="#6B3423" stroke-width="10" stroke-linecap="round" opacity="0.75"/>
+
+<circle cx="150" cy="130" r="14" fill="#241209"/>
+<circle cx="150" cy="130" r="9" fill="none" stroke="#E0794C" stroke-width="2.5"/>
+
+<path d="M78 225 L78 241 L94 241 L94 233 L110 233 L110 241 L126 241 L126 225 L142 225 L142 241 L158 241 L158 233 L174 233 L174 241 L190 241 L190 225 L206 225 L206 241 L222 241"
+  fill="none" stroke="#241209" stroke-width="3"/>
+
+</svg>

@@ -12,15 +12,57 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Server struct {
-	App *application.Service
-	Log *slog.Logger
+	App  *application.Service
+	Log  *slog.Logger
+	Logs *logStore
 }
 
-func New(app *application.Service, log *slog.Logger) *Server { return &Server{app, log} }
+type logEvent struct {
+	Timestamp     time.Time `json:"timestamp"`
+	Level         string    `json:"level"`
+	Message       string    `json:"message"`
+	StatusCode    int       `json:"status_code"`
+	CorrelationID string    `json:"correlation_id"`
+	Component     string    `json:"component"`
+	Layer         string    `json:"layer"`
+	Operation     string    `json:"operation"`
+	DurationMS    int64     `json:"duration_ms"`
+}
+
+type logStore struct {
+	mu     sync.RWMutex
+	events []logEvent
+}
+
+const maxLogEvents = 300
+
+func (store *logStore) append(event logEvent) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	store.events = append(store.events, event)
+	if len(store.events) > maxLogEvents {
+		store.events = store.events[len(store.events)-maxLogEvents:]
+	}
+}
+
+func (store *logStore) list() []logEvent {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	events := make([]logEvent, len(store.events))
+	for index := range store.events {
+		events[len(store.events)-1-index] = store.events[index]
+	}
+	return events
+}
+
+func New(app *application.Service, log *slog.Logger) *Server {
+	return &Server{App: app, Log: log, Logs: &logStore{}}
+}
 func (s *Server) Handler() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /health", s.health)
@@ -54,6 +96,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/deletion-requests/{id}/reject", s.rejectDeletionRequest)
 	m.HandleFunc("POST /v1/deletion-requests/{id}/cancel", s.cancelDeletionRequest)
 	m.HandleFunc("GET /v1/audit-events", s.auditEvents)
+	m.HandleFunc("GET /v1/logs", s.logs)
+	m.HandleFunc("POST /v1/audit-events/preferences", s.recordPreferenceChange)
 	m.HandleFunc("GET /v1/saved-filters", s.savedFilters)
 	m.HandleFunc("POST /v1/saved-filters", s.createSavedFilter)
 	m.HandleFunc("PUT /v1/saved-filters/{id}", s.updateSavedFilter)
@@ -68,6 +112,22 @@ func (s *Server) Handler() http.Handler {
 }
 
 type correlationKey struct{}
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (writer *statusWriter) WriteHeader(status int) {
+	writer.status = status
+	writer.ResponseWriter.WriteHeader(status)
+}
+
+func (writer *statusWriter) Write(body []byte) (int, error) {
+	if writer.status == 0 {
+		writer.status = http.StatusOK
+	}
+	return writer.ResponseWriter.Write(body)
+}
 
 func correlation(ctx context.Context) string { v, _ := ctx.Value(correlationKey{}).(string); return v }
 func (s *Server) middleware(next http.Handler) http.Handler {
@@ -78,8 +138,17 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 		}
 		w.Header().Set("X-Correlation-ID", cid)
 		start := time.Now()
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), correlationKey{}, cid)))
-		s.Log.Info("request completed", "correlation_id", cid, "component", "api", "layer", "router", "operation", r.Method+" "+r.URL.Path, "duration_ms", time.Since(start).Milliseconds())
+		response := &statusWriter{ResponseWriter: w}
+		next.ServeHTTP(response, r.WithContext(context.WithValue(r.Context(), correlationKey{}, cid)))
+		if response.status == 0 {
+			response.status = http.StatusOK
+		}
+		duration := time.Since(start).Milliseconds()
+		event := logEvent{Timestamp: time.Now().UTC(), Level: "info", Message: "request completed", StatusCode: response.status, CorrelationID: cid, Component: "api", Layer: "router", Operation: r.Method + " " + r.URL.Path, DurationMS: duration}
+		if r.URL.Path != "/v1/logs" {
+			s.Logs.append(event)
+		}
+		s.Log.Info(event.Message, "correlation_id", event.CorrelationID, "component", event.Component, "layer", event.Layer, "operation", event.Operation, "status_code", event.StatusCode, "duration_ms", event.DurationMS)
 	})
 }
 
@@ -101,6 +170,17 @@ func fail(w http.ResponseWriter, e error) {
 }
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, map[string]string{"status": "ok"})
+}
+func (s *Server) logs(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.Require(a, domain.RoleAdministrator, domain.RoleManager); err != nil {
+		fail(w, err)
+		return
+	}
+	write(w, http.StatusOK, s.Logs.list())
 }
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	ok, e := s.App.Initialized(r.Context())
@@ -525,6 +605,26 @@ func (s *Server) auditEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, events)
+}
+func (s *Server) recordPreferenceChange(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Kind   string            `json:"kind"`
+		Before map[string]string `json:"before"`
+		After  map[string]string `json:"after"`
+	}
+	if err := jsonBody(r, &body); err != nil {
+		fail(w, err)
+		return
+	}
+	if err := s.App.RecordPreferenceChange(r.Context(), a, body.Kind, body.Before, body.After, correlation(r.Context())); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) savedFilters(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)

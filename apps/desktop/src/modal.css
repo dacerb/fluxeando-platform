@@ -1,3 +1,4 @@
 .modal-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;background:#17203380}
 .modal{width:min(100%,440px);background:#fff;border-radius:14px;padding:24px;box-shadow:0 18px 45px #1720334d}
 .modal h2{margin:0 0 8px}.modal p{color:#475569;line-height:1.5}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.edit-modal{display:grid;gap:18px;border-radius:28px;background:#f4f3f1}.edit-modal .modal-actions{margin-top:4px}.edit-modal .MuiOutlinedInput-root{background:#fff}.app-shell.dark .modal-backdrop{background:#0000009c}.app-shell.dark .edit-modal{background:#262427;color:#f1edef}.app-shell.dark .edit-modal .MuiOutlinedInput-root{background:#302d30;color:#f1edef}.app-shell.dark .edit-modal .MuiInputLabel-root{color:#d0c8cc}.app-shell.dark .edit-modal .MuiButton-contained{background:#ed4fb8;color:#351027}

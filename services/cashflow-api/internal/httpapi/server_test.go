@@ -157,3 +157,52 @@ func TestActivateUserRoute(t *testing.T) {
 		t.Fatalf("status = %d", response.StatusCode)
 	}
 }
+
+func TestLogsRouteReturnsRecentRequestsForAdministrator(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	app := application.New(repo)
+	ctx := context.Background()
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "logs-route"); err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := app.Login(ctx, "admin@example.com", "a secure password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(httpapi.New(app, slog.Default()).Handler())
+	defer server.Close()
+
+	health, err := http.Get(server.URL + "/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	health.Body.Close()
+
+	request, err := http.NewRequest(http.MethodGet, server.URL+"/v1/logs", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	var events []struct {
+		StatusCode int    `json:"status_code"`
+		Operation  string `json:"operation"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&events); err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].StatusCode != http.StatusOK || events[0].Operation != "GET /health" {
+		t.Fatalf("events = %#v", events)
+	}
+}
