@@ -249,7 +249,12 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 .auth-card p, .brand span, .runtime-meta { color: var(--ui-text-muted) !important; }
 .splash { background: radial-gradient(circle at 50% 42%, var(--ui-accent-container) 0, transparent 26%), var(--ui-canvas) !important; }
 .login-transition { background: radial-gradient(circle at 50% 42%, var(--ui-accent-container) 0, transparent 34%), var(--ui-canvas) !important; }
-.login-transition-logo { border-color: var(--ui-border) !important; box-shadow: 0 12px 34px var(--ui-shadow) !important; }
+.login-transition-logo,
+.splash-mark {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
 .login-transition p { color: var(--ui-text-muted) !important; }
 .login-progress { background: var(--ui-surface-highest) !important; }
 .login-progress i { background: var(--ui-accent) !important; }
