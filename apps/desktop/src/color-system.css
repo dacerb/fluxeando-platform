@@ -520,6 +520,14 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
   background: var(--ui-surface-highest) !important;
   color: var(--ui-text-muted) !important;
 }
+/* En oscuro se invierte el contraste del control de tema: thumb claro, icono oscuro. */
+body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background: #f5f5f5 !important;
+  color: #212529 !important;
+}
+body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background: var(--ui-accent) !important;
+}
 @media (max-width: 700px) {
   .runtime-logs { width: 100%; max-height: 60vh; margin-top: 24px; padding: 14px; }
   .runtime-log-row { grid-template-columns: 60px 42px minmax(0, 1fr); }
