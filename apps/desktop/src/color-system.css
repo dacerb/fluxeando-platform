@@ -263,11 +263,11 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 .MuiPickersPopper-root .MuiPickersCalendarHeader-label { font-size: 1rem !important; font-weight: 750 !important; }
 .MuiPickersPopper-root .MuiPickersArrowSwitcher-root { gap: 2px !important; }
 
-.auth-shell { background: radial-gradient(circle at 50% 0, var(--ui-accent-container) 0, transparent 42%), var(--ui-canvas) !important; }
+.auth-shell { background: var(--ui-canvas) !important; }
 .auth-card { background: var(--ui-surface-container-low) !important; border-color: var(--ui-border) !important; box-shadow: 0 20px 60px var(--ui-shadow) !important; color: var(--ui-text) !important; }
 .auth-card p, .brand span, .runtime-meta { color: var(--ui-text-muted) !important; }
-.splash { background: radial-gradient(circle at 50% 42%, var(--ui-accent-container) 0, transparent 26%), var(--ui-canvas) !important; }
-.login-transition { background: radial-gradient(circle at 50% 42%, var(--ui-accent-container) 0, transparent 34%), var(--ui-canvas) !important; }
+.splash { background: var(--ui-canvas) !important; }
+.login-transition { background: var(--ui-canvas) !important; }
 .login-transition-logo,
 .splash-mark {
   background: transparent !important;
@@ -414,7 +414,9 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
 
 /* El recurso de marca debe verse sin una tarjeta o marco adicional. */
 .sidebar-logo,
-.brand-logo {
+.brand-logo,
+.app-shell .sidebar-logo,
+.app-shell.dark .sidebar-logo {
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
