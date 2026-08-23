@@ -41,12 +41,24 @@ body[data-color-mode='dark'] {
   --ui-on-sidebar: var(--m3-on-surface);
 }
 
+/* En modo oscuro la superficie completa comparte el tono base del sidebar. */
+.app-shell.dark {
+  --ui-canvas: #1f1717 !important;
+  --ui-surface: #1f1717 !important;
+  --ui-surface-low: #1f1717 !important;
+  --ui-surface-container: #1f1717 !important;
+  --ui-surface-high: #1f1717 !important;
+  --ui-surface-highest: #1f1717 !important;
+  background: #1f1717 !important;
+}
+
 body[data-color-mode='light'] {
   --ui-selected: color-mix(in srgb, var(--ui-accent) 30%, var(--ui-surface-container-high));
 }
 
 html, body, #root { min-height: 100%; }
 body { background: var(--ui-canvas) !important; color: var(--ui-text); font-family: var(--ui-font-family) !important; }
+body[data-color-mode='dark'] { background: #1f1717 !important; }
 button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInputBase-root, .MuiMenuItem-root, .MuiChip-root, .MuiFormLabel-root {
   font-family: var(--ui-font-family) !important;
 }
@@ -268,6 +280,9 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 .auth-card p, .brand span, .runtime-meta { color: var(--ui-text-muted) !important; }
 .splash { background: var(--ui-canvas) !important; }
 .login-transition { background: var(--ui-canvas) !important; }
+body[data-color-mode='dark'] .auth-shell,
+body[data-color-mode='dark'] .splash,
+body[data-color-mode='dark'] .login-transition { background: #1f1717 !important; }
 .login-transition-logo,
 .splash-mark {
   background: transparent !important;
