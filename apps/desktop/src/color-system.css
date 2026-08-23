@@ -43,13 +43,13 @@ body[data-color-mode='dark'] {
 
 /* En modo oscuro la superficie completa comparte el tono base del sidebar. */
 .app-shell.dark {
-  --ui-canvas: #1f1717 !important;
-  --ui-surface: #1f1717 !important;
-  --ui-surface-low: #1f1717 !important;
-  --ui-surface-container: #1f1717 !important;
-  --ui-surface-high: #1f1717 !important;
-  --ui-surface-highest: #1f1717 !important;
-  background: #1f1717 !important;
+  --ui-canvas: #212529 !important;
+  --ui-surface: #212529 !important;
+  --ui-surface-low: #212529 !important;
+  --ui-surface-container: #212529 !important;
+  --ui-surface-high: #212529 !important;
+  --ui-surface-highest: #212529 !important;
+  background: #212529 !important;
 }
 
 body[data-color-mode='light'] {
@@ -58,7 +58,7 @@ body[data-color-mode='light'] {
 
 html, body, #root { min-height: 100%; }
 body { background: var(--ui-canvas) !important; color: var(--ui-text); font-family: var(--ui-font-family) !important; }
-body[data-color-mode='dark'] { background: #1f1717 !important; }
+body[data-color-mode='dark'] { background: #212529 !important; }
 button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInputBase-root, .MuiMenuItem-root, .MuiChip-root, .MuiFormLabel-root {
   font-family: var(--ui-font-family) !important;
 }
@@ -72,7 +72,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-sidebar,
 .app-shell .app-sidebar,
 .app-shell.dark .app-sidebar {
-  background: #1f1717 !important;
+  background: #212529 !important;
   color: var(--ui-on-sidebar) !important;
 }
 .sidebar-brand, .sidebar-brand strong, .app-sidebar .tabs button,
@@ -86,7 +86,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 }
 .app-sidebar .tabs button.selected, .app-shell.dark .app-sidebar .tabs button.selected {
   position: relative;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-accent) 88%, #1f1717), color-mix(in srgb, var(--ui-accent) 56%, #1f1717)) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-accent) 88%, #212529), color-mix(in srgb, var(--ui-accent) 56%, #212529)) !important;
   color: #ffffff !important;
   box-shadow: inset 5px 0 0 var(--ui-accent), 0 8px 18px color-mix(in srgb, var(--ui-accent) 28%, transparent) !important;
 }
@@ -282,7 +282,7 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 .login-transition { background: var(--ui-canvas) !important; }
 body[data-color-mode='dark'] .auth-shell,
 body[data-color-mode='dark'] .splash,
-body[data-color-mode='dark'] .login-transition { background: #1f1717 !important; }
+body[data-color-mode='dark'] .login-transition { background: #212529 !important; }
 .login-transition-logo,
 .splash-mark {
   background: transparent !important;
