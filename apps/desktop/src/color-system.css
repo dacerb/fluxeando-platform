@@ -380,10 +380,11 @@ body[data-color-mode='dark'] .login-transition { background: #212529 !important;
 button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--ui-accent) !important; outline-offset: 2px; }
 .fluxeando-wordmark { display: inline-flex; align-items: baseline; gap: .08em; font-weight: 400; }
 .fluxeando-wordmark strong { font-weight: 850 !important; }
+.fluxeando-wordmark strong { display: inline !important; }
 .brand .fluxeando-wordmark,
 .sidebar-brand .fluxeando-wordmark,
 .splash .fluxeando-wordmark,
-.login-transition .fluxeando-wordmark { display: inline-flex !important; margin: 0 !important; color: inherit !important; }
+.login-transition .fluxeando-wordmark { display: inline-flex !important; flex-wrap: nowrap !important; white-space: nowrap !important; margin: 0 !important; color: inherit !important; }
 .brand .fluxeando-wordmark > span,
 .sidebar-brand .fluxeando-wordmark > span,
 .splash .fluxeando-wordmark > span,
