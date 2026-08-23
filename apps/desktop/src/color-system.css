@@ -370,6 +370,28 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
 .runtime-log-row code { min-width: 0; overflow: hidden; margin: 0; padding: 0; color: var(--ui-text); background: transparent; border-radius: 0; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-log-status { display: inline-grid; place-items: center; min-height: 24px; border-radius: 12px; color: var(--ui-on-accent-container); background: var(--ui-accent-container); font-weight: 750; }
 .runtime-log-status.status-4, .runtime-log-status.status-5 { color: var(--ui-on-danger-container); background: var(--ui-danger-container); }
+
+/* La transición usa únicamente el recurso de marca: sin marco translúcido y con mayor presencia. */
+.login-transition-logo {
+  width: min(420px, 82vw) !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.login-transition-logo img {
+  display: block !important;
+  width: min(360px, 72vw) !important;
+  height: auto !important;
+  max-height: 360px !important;
+  object-fit: contain !important;
+  transform: none !important;
+}
+.login-transition > strong { color: var(--ui-accent) !important; }
+.splash-mark img { width: min(260px, 68vw) !important; height: auto !important; }
 @media (max-width: 700px) {
   .runtime-logs { width: 100%; max-height: 60vh; margin-top: 24px; padding: 14px; }
   .runtime-log-row { grid-template-columns: 60px 42px minmax(0, 1fr); }
