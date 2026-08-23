@@ -90,9 +90,9 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   color: var(--ui-accent) !important;
   background: var(--ui-accent-container) !important;
   border-radius: 8px;
-  font-size: 1.05rem !important;
+  font-size: 1.28rem !important;
   font-weight: 350 !important;
-  letter-spacing: .06em;
+  letter-spacing: .12em;
   text-transform: none !important;
 }
 .eyebrow strong { font-weight: 850 !important; }
