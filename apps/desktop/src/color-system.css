@@ -88,10 +88,13 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   color: var(--ui-accent) !important;
   background: var(--ui-accent-container) !important;
   border-radius: 8px;
-  letter-spacing: .08em;
+  font-size: 1.05rem !important;
+  font-weight: 350 !important;
+  letter-spacing: .06em;
   text-transform: none !important;
 }
-.eyebrow strong { font-weight: 850; }
+.eyebrow strong { font-weight: 850 !important; }
+.eyebrow:not(:has(strong)) { font-weight: 350 !important; }
 .app-content .card, .app-content .material-card, .material-card {
   background: var(--ui-surface-container) !important;
   color: var(--ui-text) !important;
