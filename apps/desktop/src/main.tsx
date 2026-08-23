@@ -22,8 +22,8 @@ import './notifications.css';
 import './filters.css';
 import './color-system.css';
 import { request } from './client';
-import fluxeandoIcon from '../../../logo/fluxeando_icon.svg';
-import fluxeandoAnimatedIcon from '../../../logo/fluxeando_icon_animated.gif';
+import fluxeandoIcon from '../../../logo/re-style/fluxeando_appicon.svg';
+import fluxeandoAnimatedIcon from '../../../logo/re-style/fluxeando_symbol_animated.gif';
 
 type Lang = 'en' | 'es';
 type User = { id: string; email: string; displayName: string; role: string; active: boolean };
