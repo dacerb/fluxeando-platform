@@ -57,7 +57,9 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 }
 .app-content { background: var(--ui-canvas) !important; }
 
-.app-sidebar {
+.app-sidebar,
+.app-shell .app-sidebar,
+.app-shell.dark .app-sidebar {
   background: #1f1717 !important;
   color: var(--ui-on-sidebar) !important;
 }
