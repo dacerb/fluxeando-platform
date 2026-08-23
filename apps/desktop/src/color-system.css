@@ -463,6 +463,46 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
   border-radius: 0 !important;
 }
 .sidebar-logo img { border-radius: 0 !important; }
+
+/* Switches compactos y alineados: el icono debe quedar dentro del thumb. */
+.header-actions .MuiSwitch-root,
+.auth-topbar .MuiSwitch-root,
+.section-head .MuiSwitch-root {
+  width: 52px !important;
+  height: 32px !important;
+  padding: 0 !important;
+}
+.header-actions .MuiSwitch-switchBase,
+.auth-topbar .MuiSwitch-switchBase,
+.section-head .MuiSwitch-switchBase {
+  padding: 4px !important;
+}
+.header-actions .MuiSwitch-switchBase.Mui-checked,
+.auth-topbar .MuiSwitch-switchBase.Mui-checked,
+.section-head .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(20px) !important;
+}
+.header-actions .MuiSwitch-thumb,
+.auth-topbar .MuiSwitch-thumb,
+.section-head .MuiSwitch-thumb {
+  width: 24px !important;
+  height: 24px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+.header-actions .MuiSwitch-thumb svg,
+.auth-topbar .MuiSwitch-thumb svg,
+.section-head .MuiSwitch-thumb svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+.header-actions .MuiSwitch-track,
+.auth-topbar .MuiSwitch-track,
+.section-head .MuiSwitch-track {
+  border-radius: 16px !important;
+  opacity: 1 !important;
+  background: var(--ui-border-strong) !important;
+}
 @media (max-width: 700px) {
   .runtime-logs { width: 100%; max-height: 60vh; margin-top: 24px; padding: 14px; }
   .runtime-log-row { grid-template-columns: 60px 42px minmax(0, 1fr); }
