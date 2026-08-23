@@ -325,6 +325,23 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 
 button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--ui-accent) !important; outline-offset: 2px; }
 
+/* Escala compacta para acciones: los botones no deben dominar el contenido. */
+.app-content button:not(.tabs button),
+.app-content .MuiButton-root {
+  min-height: 36px !important;
+  padding: 7px 14px !important;
+  border-radius: 16px !important;
+  font-size: .9rem !important;
+}
+.app-content .palette-option,
+.app-content .typography-option {
+  min-height: 78px !important;
+  padding: 14px !important;
+  border-radius: 16px !important;
+}
+.app-content .typography-option { min-height: 72px !important; }
+.app-content .palette-option .palette-swatch-set { transform: scale(.9); transform-origin: center; }
+
 .runtime-logs {
   position: relative;
   width: 100%;
