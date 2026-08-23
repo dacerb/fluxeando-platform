@@ -1,0 +1,12 @@
+node_modules/
+dist/
+renderer/
+out/
+coverage/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+
+*-template.csv
+apps/desktop/resources/bin/
