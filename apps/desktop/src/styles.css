@@ -63,10 +63,11 @@ body[data-accent='graphite'] .sidebar-brand strong,body[data-accent='graphite'] 
 }
 .storage-summary-path{margin-top:4px!important;max-width:900px;overflow-wrap:anywhere;font-size:.82rem!important}
 .storage-path{display:inline-block;margin:0;padding:4px 8px;background:var(--m3-surface-container-high);color:inherit;border-radius:6px;font-size:.82rem;overflow-wrap:anywhere}
-.app-content .settings-card:not(.storage-card){margin-bottom:0!important;border-bottom-left-radius:0!important;border-bottom-right-radius:0!important}
-.app-content .settings-card.storage-card{margin-top:0!important;border-top-left-radius:0!important;border-top-right-radius:0!important}
-.storage-card .MuiCardContent-root{padding-top:0!important}
-.storage-card .settings-section{margin-top:0!important;padding-top:18px;border-top:1px solid color-mix(in srgb, var(--m3-outline-variant) 82%, transparent)}
+.app-content>.settings-card{margin-top:0!important;margin-bottom:0!important}
+.app-content>.settings-card:has(+.settings-card){border-bottom-left-radius:0!important;border-bottom-right-radius:0!important}
+.app-content>.settings-card+.settings-card{border-top-left-radius:0!important;border-top-right-radius:0!important}
+.app-content>.settings-card+.settings-card .MuiCardContent-root{padding-top:0!important}
+.app-content>.settings-card+.settings-card .settings-section:first-child{margin-top:0!important;padding-top:18px;border-top:1px solid color-mix(in srgb, var(--m3-outline-variant) 82%, transparent)}
 .app-content:has(.settings-card .settings-section[open]) .settings-card .settings-section:not([open])>summary{filter:blur(1.8px);opacity:.48;transition:filter .2s ease,opacity .2s ease}
 .settings-card .settings-section>summary{transition:filter .2s ease,opacity .2s ease}
 /* Settings hierarchy: menu separators are consistent; open-section rules are quieter. */

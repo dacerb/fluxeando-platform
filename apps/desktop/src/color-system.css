@@ -111,7 +111,6 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-shell.dark .app-sidebar .tabs button.selected > * { position: relative; z-index: 1; }
 .app-sidebar .tabs button.selected svg,
 .app-shell.dark .app-sidebar .tabs button.selected svg { color: #ffffff !important; }
-}
 
 .app-content > header { border-color: var(--ui-border) !important; }
 .eyebrow {
