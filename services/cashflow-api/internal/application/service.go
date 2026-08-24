@@ -454,6 +454,39 @@ func (s *Service) CreateCategory(ctx context.Context, actor domain.User, name, d
 	}
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "category_created", "category", c.ID, correlation, nil, c)
 }
+
+func (s *Service) DeleteCategory(ctx context.Context, actor domain.User, id, replacementID, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); err != nil {
+		return err
+	}
+	before, err := s.Repo.Category(ctx, id)
+	if err != nil || before.Active {
+		return errors.New("deactivate the category before deleting it")
+	}
+	usage, err := s.Repo.CategoryUsageCount(ctx, id)
+	if err != nil {
+		return err
+	}
+	if usage > 0 {
+		if replacementID == "" {
+			return errors.New("category has recorded movements; select a replacement category")
+		}
+		if replacementID == id {
+			return errors.New("replacement category must be different")
+		}
+		replacement, err := s.Repo.Category(ctx, replacementID)
+		if err != nil || !replacement.Active {
+			return errors.New("replacement category is inactive or does not exist")
+		}
+		if err = s.Repo.MigrateCategoryTransactions(ctx, id, replacementID); err != nil {
+			return err
+		}
+	}
+	if err = s.Repo.DeleteCategory(ctx, id); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "category_deleted", "category", id, correlation, before, nil)
+}
 func (s *Service) ImportCategories(ctx context.Context, actor domain.User, rows []CategoryImport, correlation string) error {
 	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager, domain.RoleOperator); e != nil {
 		return e

@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -90,6 +92,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PUT /v1/categories/{id}", s.updateCategory)
 	m.HandleFunc("POST /v1/categories/{id}/deactivate", s.deactivateCategory)
 	m.HandleFunc("POST /v1/categories/{id}/activate", s.activateCategory)
+	m.HandleFunc("DELETE /v1/categories/{id}", s.deleteCategory)
 	m.HandleFunc("GET /v1/transactions", s.transactions)
 	m.HandleFunc("POST /v1/transactions", s.createTransaction)
 	m.HandleFunc("PUT /v1/transactions/{id}", s.updateTransaction)
@@ -100,6 +103,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/deletion-requests/{id}/cancel", s.cancelDeletionRequest)
 	m.HandleFunc("GET /v1/audit-events", s.auditEvents)
 	m.HandleFunc("GET /v1/logs", s.logs)
+	m.HandleFunc("GET /v1/exports/logs.zip", s.exportLogs)
 	m.HandleFunc("POST /v1/audit-events/preferences", s.recordPreferenceChange)
 	m.HandleFunc("GET /v1/saved-filters", s.savedFilters)
 	m.HandleFunc("POST /v1/saved-filters", s.createSavedFilter)
@@ -193,6 +197,41 @@ func (s *Server) logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, s.Logs.list())
+}
+
+func (s *Server) exportLogs(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if err := s.App.Require(a, domain.RoleAdministrator, domain.RoleManager); err != nil {
+		fail(w, err)
+		return
+	}
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	file, err := writer.Create("runtime-logs.json")
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	data, err := json.MarshalIndent(s.Logs.list(), "", "  ")
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if _, err = file.Write(data); err != nil {
+		fail(w, err)
+		return
+	}
+	if err = writer.Close(); err != nil {
+		fail(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="runtime-logs.zip"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(archive.Bytes())
 }
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	ok, e := s.App.Initialized(r.Context())
@@ -526,6 +565,24 @@ func (s *Server) activateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 	if e := s.App.ActivateCategory(r.Context(), a, r.PathValue("id"), correlation(r.Context())); e != nil {
 		fail(w, e)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) deleteCategory(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		ReplacementCategoryID string `json:"replacementCategoryId"`
+	}
+	if r.Body != nil {
+		_ = jsonBody(r, &body)
+	}
+	if err := s.App.DeleteCategory(r.Context(), a, r.PathValue("id"), body.ReplacementCategoryID, correlation(r.Context())); err != nil {
+		fail(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

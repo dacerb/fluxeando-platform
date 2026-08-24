@@ -33,6 +33,7 @@
   --ui-shadow: color-mix(in srgb, var(--m3-on-surface, #1e1b18) 14%, transparent);
   --ui-sidebar: var(--m3-inverse-surface, #33302d);
   --ui-on-sidebar: var(--m3-inverse-on-surface, #f7f0ea);
+  --ui-menu-background: #212529;
 }
 
 body[data-color-mode='dark'] {
@@ -72,7 +73,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-sidebar,
 .app-shell .app-sidebar,
 .app-shell.dark .app-sidebar {
-  background: #212529 !important;
+  background: var(--ui-menu-background) !important;
   color: var(--ui-on-sidebar) !important;
 }
 .sidebar-brand, .sidebar-brand strong, .app-sidebar .tabs button,
@@ -97,13 +98,14 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   content: '';
   position: absolute;
   z-index: 0;
-  inset: 8px 7px;
-  border: 3px solid var(--ui-accent);
-  border-radius: 24px 18px 22px 20px;
+  inset: 8px 0;
+  border: 0;
+  border-radius: 4px;
   background: color-mix(in srgb, var(--ui-accent) 72%, #212529);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 92%, transparent),
-    0 10px 22px color-mix(in srgb, var(--ui-accent) 24%, transparent);
-  transform: rotate(-0.5deg);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--ui-accent) 24%, transparent);
+}
+.app-shell.dark .app-sidebar .tabs button.selected::before {
+  box-shadow: none;
 }
 .app-sidebar .tabs button.selected > *,
 .app-shell.dark .app-sidebar .tabs button.selected > * { position: relative; z-index: 1; }
@@ -207,6 +209,10 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .material-list .MuiCheckbox-root:hover, .app-content .MuiCheckbox-root:hover { background: var(--ui-hover) !important; }
 .material-list .MuiCheckbox-root.Mui-checked, .app-content .MuiCheckbox-root.Mui-checked { color: var(--ui-accent) !important; }
 .app-content .MuiCheckbox-root.Mui-focusVisible { outline-color: var(--ui-accent) !important; }
+.cashflow-checkbox-checked { display: inline-flex; width: 24px; height: 24px; }
+.cashflow-checkbox-checked svg { display: block; width: 100%; height: 100%; }
+.cashflow-checkbox-checked rect { fill: var(--ui-accent); }
+.cashflow-checkbox-checked path { fill: none; stroke: #000; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .modal-backdrop { background: color-mix(in srgb, var(--ui-text) 48%, transparent) !important; }
 .modal, .edit-modal {
@@ -296,19 +302,68 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 .MuiPickersPopper-root .MuiPickersArrowSwitcher-root { gap: 2px !important; }
 
 .auth-shell { background: var(--ui-canvas) !important; }
-.auth-card { background: var(--ui-surface-container-low) !important; border-color: var(--ui-border) !important; box-shadow: 0 20px 60px var(--ui-shadow) !important; color: var(--ui-text) !important; }
+.auth-card { background: #fff !important; border-color: var(--ui-border) !important; box-shadow: 0 20px 60px var(--ui-shadow) !important; color: var(--ui-text) !important; }
 .auth-card p, .brand span, .runtime-meta { color: var(--ui-text-muted) !important; }
 .splash { background: var(--ui-canvas) !important; }
 .login-transition { background: var(--ui-canvas) !important; }
 body[data-color-mode='dark'] .auth-shell,
 body[data-color-mode='dark'] .splash,
 body[data-color-mode='dark'] .login-transition { background: #212529 !important; }
+
+/* Aura ambiental de la pantalla de acceso: más presencia sin competir con el formulario. */
+.auth-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #fff !important;
+}
+.auth-shell::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: -18%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgb(92 85 81 / 0.52) 0,
+    rgb(92 85 81 / 0.30) 30%,
+    transparent 68%
+  );
+  filter: blur(30px);
+  animation: auth-aura-pulse 2.8s ease-in-out infinite;
+}
+.auth-shell > * {
+  position: relative;
+  z-index: 1;
+}
+body[data-color-mode='dark'] .auth-shell {
+  background: #212529 !important;
+}
+body[data-color-mode='dark'] .auth-card {
+  background: #262427 !important;
+}
+body[data-color-mode='dark'] .auth-shell::before {
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgb(237 79 184 / 0.28) 0,
+    rgb(237 79 184 / 0.13) 25%,
+    transparent 56%
+  );
+}
+@keyframes auth-aura-pulse {
+  0%, 100% { opacity: .86; transform: scale(.92); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-shell::before { animation: none; }
+}
 .login-transition-logo,
 .splash-mark {
   background: transparent !important;
   border: 0 !important;
+  outline: 0 !important;
   box-shadow: none !important;
-}
+  }
 .login-transition p { color: var(--ui-text-muted) !important; }
 .login-progress { background: var(--ui-surface-highest) !important; }
 .login-progress i { background: var(--ui-accent) !important; }
@@ -401,6 +456,12 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
   border-radius: 16px !important;
   font-size: .9rem !important;
 }
+/* Acciones masivas: mantenerlas compactas aunque el texto ocupe dos líneas. */
+.material-card .MuiButton-root {
+  min-height: 32px !important;
+  padding: 5px 12px !important;
+  line-height: 1.25 !important;
+}
 .app-content .palette-option,
 .app-content .typography-option {
   min-height: 78px !important;
@@ -431,11 +492,19 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
 .runtime-logs-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .runtime-logs-head strong, .runtime-logs-head small { display: block; }
 .runtime-logs-head small { color: var(--ui-text-muted); margin-top: 2px; }
+.runtime-log-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.runtime-logs-head .runtime-log-close { background: var(--ui-accent) !important; color: var(--ui-on-accent) !important; }
+.runtime-logs-head .runtime-log-export { background: var(--ui-accent-container) !important; color: var(--ui-on-accent-container) !important; }
 .runtime-log-filters { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 10px; }
 .runtime-log-list { min-height: 0; overflow: auto; border-top: 1px solid var(--ui-border); }
 .runtime-log-row { display: grid; grid-template-columns: 76px 48px minmax(0, 1fr) minmax(160px, auto); align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--ui-border); font-size: .8rem; }
 .runtime-log-row { cursor: pointer; }
-.runtime-log-row:hover, .runtime-log-row:focus-visible { background: var(--ui-surface-variant); outline: none; }
+.runtime-log-entry { border-bottom: 1px solid var(--ui-border); }
+.runtime-log-entry .runtime-log-row { width: 100%; border: 0; border-radius: 0; text-align: left; background: transparent !important; color: var(--ui-text) !important; box-shadow: none !important; }
+.runtime-log-detail-wrap { padding: 0 12px 14px 136px; background: var(--ui-surface-container); }
+.runtime-log-row:hover, .runtime-log-row:focus, .runtime-log-row:active, .runtime-log-row:focus-visible { background: var(--ui-surface-variant) !important; color: var(--ui-text) !important; outline: none; box-shadow: none !important; }
+.runtime-log-copied { padding: 8px 10px; border-radius: 10px; background: var(--ui-accent-container); color: var(--ui-on-accent-container); font-size: .8rem; font-weight: 700; }
+.runtime-log-copied { position: absolute; top: 58px; right: 18px; z-index: 2; min-height: 34px; display: flex; align-items: center; }
 .runtime-log-detail { max-height: 55vh; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; font: .8rem/1.5 'Roboto Mono', monospace; }
 .runtime-log-row time, .runtime-log-row small { color: var(--ui-text-muted); }
 .runtime-log-row code { min-width: 0; overflow: hidden; margin: 0; padding: 0; color: var(--ui-text); background: transparent; border-radius: 0; text-overflow: ellipsis; white-space: nowrap; }
@@ -452,6 +521,8 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+  outline: none !important;
+  isolation: isolate;
 }
 .login-transition-logo img {
   display: block !important;
@@ -460,6 +531,7 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
   max-height: 360px !important;
   object-fit: contain !important;
   transform: none !important;
+  background: transparent !important;
 }
 .login-transition > strong { color: var(--ui-accent) !important; }
 .splash-mark img { width: min(260px, 68vw) !important; height: auto !important; }
@@ -540,6 +612,98 @@ body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked .Mu
 body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
   background: var(--ui-accent) !important;
 }
+
+/* Todos los switches usan el mismo contraste, independientemente de la apariencia. */
+.MuiSwitch-root .MuiSwitch-track,
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+body[data-color-mode='dark'] .MuiSwitch-root .MuiSwitch-track,
+body[data-color-mode='dark'] .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background: #9e9e9e !important;
+  opacity: 1 !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb,
+body[data-color-mode='dark'] .MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
+  background: #fff !important;
+  color: #000 !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb,
+body[data-color-mode='dark'] .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background: #000 !important;
+  color: #fff !important;
+}
+.cashflow-switch .MuiSwitch-track,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background: #9e9e9e !important;
+  opacity: 1 !important;
+}
+.cashflow-switch .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
+  background: #fff !important;
+  color: #000 !important;
+}
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background: #000 !important;
+  color: #fff !important;
+}
+/* Tamaño y centrado uniformes, también en los switches del login. */
+.cashflow-switch.MuiSwitch-root {
+  width: 68px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+.cashflow-switch .MuiSwitch-switchBase {
+  padding: 6px !important;
+}
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(28px) !important;
+}
+.cashflow-switch .MuiSwitch-thumb {
+  width: 28px !important;
+  height: 28px !important;
+}
+.cashflow-switch .MuiSwitch-track {
+  border-radius: 20px !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb,
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb span {
+  color: #000 !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb,
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb span {
+  color: #fff !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb svg {
+  color: #fff !important;
+}
+/* El texto externo del control también debe conservar contraste en modo oscuro. */
+body[data-color-mode='dark'] .language-switch .MuiFormControlLabel-label,
+body[data-color-mode='dark'] .theme-switch .MuiFormControlLabel-label,
+.app-shell.dark .language-switch .MuiFormControlLabel-label,
+.app-shell.dark .theme-switch .MuiFormControlLabel-label {
+  color: #fff !important;
+}
+/* Reservar espacio para que los dos controles del encabezado no se superpongan. */
+.header-actions {
+  column-gap: 14px !important;
+  grid-template-columns: 180px 180px max-content !important;
+}
+.header-actions .theme-switch,
+.header-actions .language-switch {
+  width: 180px !important;
+  min-width: 180px !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background-color: #000 !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb svg {
+  color: #fff !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
+  background-color: #fff !important;
+}
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb svg {
+  color: #000 !important;
+}
 @media (max-width: 700px) {
   .runtime-logs { width: 100%; max-height: 60vh; margin-top: 24px; padding: 14px; }
   .runtime-log-row { grid-template-columns: 60px 42px minmax(0, 1fr); }
@@ -548,4 +712,128 @@ body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked + .
 
 @media (max-width: 700px) {
   .typography-grid { grid-template-columns: 1fr; }
+}
+
+/* El selector de idioma necesita más superficie para que ES/EN sean legibles. */
+.language-switch .MuiSwitch-root {
+  width: 92px !important;
+  height: 48px !important;
+  padding: 0 !important;
+}
+.language-switch .MuiSwitch-switchBase {
+  padding: 6px !important;
+}
+.language-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(44px) !important;
+}
+.language-switch .MuiSwitch-thumb {
+  width: 36px !important;
+  height: 36px !important;
+}
+.language-switch .MuiSwitch-track {
+  width: 92px !important;
+  border-radius: 24px !important;
+}
+.language-switch .switch-language-code {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 14px !important;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+/* Idioma y modo comparten exactamente la misma geometría visual. */
+.language-switch .MuiSwitch-root {
+  width: 68px !important;
+  height: 40px !important;
+}
+.language-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(28px) !important;
+}
+.language-switch .MuiSwitch-thumb {
+  width: 28px !important;
+  height: 28px !important;
+}
+.language-switch .MuiSwitch-track {
+  width: 68px !important;
+  border-radius: 20px !important;
+}
+
+/* La etiqueta queda próxima a su switch y los dos grupos mantienen el mismo ritmo. */
+.auth-topbar,
+.header-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 24px !important;
+}
+.auth-topbar {
+  justify-content: flex-start !important;
+}
+.header-actions {
+  justify-content: flex-end !important;
+}
+.auth-topbar .language-switch,
+.auth-topbar .theme-switch,
+.header-actions .language-switch,
+.header-actions .theme-switch {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+.auth-topbar .MuiFormControlLabel-label,
+.header-actions .MuiFormControlLabel-label {
+  width: auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+@media (max-width: 700px) {
+  .header-actions {
+    gap: 12px !important;
+  }
+}
+
+/* Proporción más liviana: menos altura, mismo ancho y misma lectura. */
+.MuiSwitch-root,
+.cashflow-switch.MuiSwitch-root {
+  width: 68px !important;
+  height: 28px !important;
+  padding: 0 !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase,
+.cashflow-switch .MuiSwitch-switchBase {
+  padding: 4px !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(40px) !important;
+}
+.MuiSwitch-root .MuiSwitch-thumb,
+.cashflow-switch .MuiSwitch-thumb {
+  width: 20px !important;
+  height: 20px !important;
+}
+.MuiSwitch-root .MuiSwitch-track,
+.cashflow-switch .MuiSwitch-track {
+  width: 68px !important;
+  border-radius: 14px !important;
+}
+.language-switch .switch-language-code {
+  font-size: 12px !important;
+}
+.theme-switch .MuiSwitch-thumb svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+.language-switch .MuiSwitch-switchBase:not(.Mui-checked) .switch-language-code {
+  color: #fff !important;
+}
+.language-switch .MuiSwitch-switchBase.Mui-checked .switch-language-code {
+  color: #000 !important;
 }

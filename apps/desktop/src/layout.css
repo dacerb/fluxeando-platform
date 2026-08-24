@@ -3,6 +3,25 @@
 .record-card h2{margin:0 0 24px;font-size:1.6rem;letter-spacing:-.02em}
 .transaction{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 .transaction input,.transaction select,.transaction button{min-height:52px;font-size:1rem}
+.transaction select{
+  appearance:none;
+  cursor:pointer;
+  padding:0 44px 0 16px;
+  border:1px solid var(--ui-border-strong,var(--m3-outline));
+  border-radius:12px;
+  background-color:var(--m3-surface-container-lowest,#fff);
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 21px) 22px,calc(100% - 15px) 22px;
+  background-size:6px 6px,6px 6px;
+  background-repeat:no-repeat;
+  color:var(--ui-text,var(--m3-on-surface));
+  color-scheme:light;
+}
+.transaction select:hover{border-color:var(--ui-text,var(--m3-on-surface))}
+.transaction select:focus{outline:none;border-color:var(--ui-accent,var(--m3-primary));box-shadow:0 0 0 3px var(--ui-focus-ring,color-mix(in srgb,var(--m3-primary) 22%,transparent))}
+.transaction select option{background:var(--m3-surface-container-high,#f3f3f3);color:var(--ui-text,var(--m3-on-surface))}
+.app-shell.dark .transaction select{color-scheme:dark}
+.app-shell.dark .transaction select option{background:var(--m3-surface-container-highest,#242424);color:var(--ui-text,var(--m3-on-surface))}
 .transaction-save{width:100%}
 
 @media (min-width:720px){

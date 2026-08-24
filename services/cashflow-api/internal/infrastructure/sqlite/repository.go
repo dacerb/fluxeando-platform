@@ -165,7 +165,10 @@ func (r *Repository) UpdatePassword(ctx context.Context, id, hash string, mustCh
 	return err
 }
 func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {
-	rows, e := r.DB.QueryContext(ctx, "SELECT id,email,display_name,role,active,must_change_password FROM users ORDER BY active DESC, email")
+	rows, e := r.DB.QueryContext(ctx, `SELECT u.id,u.email,u.display_name,u.role,u.active,u.must_change_password,
+		NOT EXISTS (SELECT 1 FROM transactions t WHERE t.created_by=u.id)
+		AND NOT EXISTS (SELECT 1 FROM saved_filters f WHERE f.user_id=u.id)
+		FROM users u ORDER BY u.active DESC, u.email`)
 	if e != nil {
 		return nil, e
 	}
@@ -173,7 +176,7 @@ func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {
 	out := make([]domain.User, 0)
 	for rows.Next() {
 		var u domain.User
-		if e = rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword); e != nil {
+		if e = rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword, &u.CanDelete); e != nil {
 			return nil, e
 		}
 		out = append(out, u)
@@ -349,6 +352,16 @@ func (r *Repository) DeactivateCategory(ctx context.Context, id string) error {
 	}
 	return nil
 }
+func (r *Repository) DeleteCategory(ctx context.Context, id string) error {
+	res, err := r.DB.ExecContext(ctx, "DELETE FROM categories WHERE id=? AND active=0", id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return errors.New("category is active or does not exist")
+	}
+	return nil
+}
 func (r *Repository) ActivateCategory(ctx context.Context, id string) error {
 	res, e := r.DB.ExecContext(ctx, "UPDATE categories SET active=1,updated_at=? WHERE id=? AND active=0", time.Now().UTC().Format(time.RFC3339Nano), id)
 	if e != nil {
@@ -380,7 +393,7 @@ func (r *Repository) ListTransactionsByCreator(ctx context.Context, from, to, cr
 	return r.listTransactions(ctx, from, to, creator)
 }
 func (r *Repository) listTransactions(ctx context.Context, from, to, creator string) ([]domain.Transaction, error) {
-	q := "SELECT t.id,t.account_id,COALESCE(t.category_id,''),COALESCE(c.name,''),t.direction,t.amount_minor,t.currency,t.description,t.occurred_on,t.status,t.created_by,t.created_at,t.updated_at FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE 1=1"
+	q := "SELECT t.id,t.account_id,COALESCE(a.name,''),COALESCE(t.category_id,''),COALESCE(c.name,''),t.direction,t.amount_minor,t.currency,t.description,t.occurred_on,t.status,t.created_by,t.created_at,t.updated_at FROM transactions t LEFT JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.category_id WHERE 1=1"
 	args := []any{}
 	if from != "" {
 		q += " AND t.occurred_on>=?"
@@ -403,7 +416,7 @@ func (r *Repository) listTransactions(ctx context.Context, from, to, creator str
 	o := make([]domain.Transaction, 0)
 	for rows.Next() {
 		var t domain.Transaction
-		if e = rows.Scan(&t.ID, &t.AccountID, &t.CategoryID, &t.CategoryName, &t.Direction, &t.AmountMinor, &t.Currency, &t.Description, &t.OccurredOn, &t.Status, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt); e != nil {
+		if e = rows.Scan(&t.ID, &t.AccountID, &t.AccountName, &t.CategoryID, &t.CategoryName, &t.Direction, &t.AmountMinor, &t.Currency, &t.Description, &t.OccurredOn, &t.Status, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt); e != nil {
 			return nil, e
 		}
 		o = append(o, t)

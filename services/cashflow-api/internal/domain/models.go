@@ -22,6 +22,7 @@ type User struct {
 	Role               string `json:"role"`
 	Active             bool   `json:"active"`
 	MustChangePassword bool   `json:"mustChangePassword"`
+	CanDelete          bool   `json:"canDelete"`
 }
 type DeletionRequest struct {
 	ID              string `json:"id"`
@@ -70,6 +71,7 @@ type Category struct {
 type Transaction struct {
 	ID           string `json:"id"`
 	AccountID    string `json:"accountId"`
+	AccountName  string `json:"accountName"`
 	CategoryID   string `json:"categoryId"`
 	CategoryName string `json:"categoryName"`
 	Direction    string `json:"direction"`

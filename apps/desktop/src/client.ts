@@ -2,7 +2,7 @@ export type ApiRequest = { path: string; method?: string; body?: unknown; token?
 
 declare global {
   interface Window {
-    cashflow?: { request<T>(input: ApiRequest): Promise<T>; runtime?(): Promise<{ version: string; mode: string }> };
+    cashflow?: { request<T>(input: ApiRequest): Promise<T>; download?(input: ApiRequest): Promise<{ data: string; contentType: string }>; runtime?(): Promise<{ version: string; mode: string; storageType?: string; dbPath?: string }> };
   }
 }
 

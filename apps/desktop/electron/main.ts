@@ -54,6 +54,12 @@ async function apiRequest(_: Electron.IpcMainInvokeEvent, input: { path: string;
   }
   return payload ?? text;
 }
+async function apiDownload(_: Electron.IpcMainInvokeEvent, input: { path: string; token?: string }) {
+  if (!input.path.startsWith('/v1/')) throw new Error('Invalid API path');
+  const response = await fetch(`${apiUrl}${input.path}`, { headers: { 'x-correlation-id': crypto.randomUUID(), ...(input.token ? { authorization: `Bearer ${input.token}` } : {}) } });
+  if (!response.ok) throw new Error(await response.text() || 'Download failed');
+  return { data: Buffer.from(await response.arrayBuffer()).toString('base64'), contentType: response.headers.get('content-type') ?? 'application/octet-stream' };
+}
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); return; }
   const win = new BrowserWindow({ width: 1200, height: 780, show: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
@@ -66,7 +72,11 @@ function createWindow() {
   if (page) win.loadURL(page); else win.loadFile(path.join(__dirname, '../renderer/index.html'));
 }
 ipcMain.handle('cashflow:api', apiRequest);
-ipcMain.handle('cashflow:runtime', () => ({ version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop' }));
+ipcMain.handle('cashflow:download', apiDownload);
+ipcMain.handle('cashflow:runtime', () => {
+  const dbPath = path.join(app.getPath('userData'), 'cashflow.db');
+  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageType: 'local_sqlite', dbPath };
+});
 app.whenReady().then(async () => { try { await startBackend(); } catch (error) { console.error('Unable to start local Go API', error); } createWindow(); });
 app.on('before-quit', () => backend?.kill());
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
