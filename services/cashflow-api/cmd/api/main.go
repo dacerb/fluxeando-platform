@@ -5,6 +5,7 @@ import (
 	"github.com/cashflow/desktop/api/internal/application"
 	"github.com/cashflow/desktop/api/internal/httpapi"
 	"github.com/cashflow/desktop/api/internal/infrastructure/sqlite"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,7 +14,15 @@ import (
 func main() {
 	dbPath := flag.String("db", "cashflow.db", "SQLite database path")
 	addr := flag.String("addr", "127.0.0.1:8787", "listen address")
+	validate := flag.Bool("validate", false, "validate a SQLite database without changing it")
 	flag.Parse()
+	if *validate {
+		if e := sqlite.Validate(*dbPath); e != nil {
+			log.Printf("database validation failed: %v", e)
+			os.Exit(1)
+		}
+		return
+	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	repo, e := sqlite.Open(*dbPath)
 	if e != nil {

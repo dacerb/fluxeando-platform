@@ -2,7 +2,7 @@ export type ApiRequest = { path: string; method?: string; body?: unknown; token?
 
 declare global {
   interface Window {
-    cashflow?: { request<T>(input: ApiRequest): Promise<T>; download?(input: ApiRequest): Promise<{ data: string; contentType: string }>; runtime?(): Promise<{ version: string; mode: string; storageType?: string; dbPath?: string }> };
+    cashflow?: { request<T>(input: ApiRequest): Promise<T>; download?(input: ApiRequest): Promise<{ data: string; contentType: string }>; runtime?(): Promise<{ version: string; mode: string; storageConfigured?: boolean; storageType?: string; dbPath?: string; defaultDbPath?: string }>; chooseDatabase?(input: { dbPath?: string }): Promise<string | undefined>; chooseNewDatabase?(input: { dbPath?: string }): Promise<string | undefined>; configureStorage?(input: { mode: 'local' | 'network'; dbPath: string }): Promise<{ mode: 'local' | 'network'; dbPath: string }>; createStorage?(input: { mode: 'local' | 'network'; dbPath?: string }): Promise<{ mode: 'local' | 'network'; dbPath: string }> };
   }
 }
 

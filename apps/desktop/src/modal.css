@@ -1,16 +1,16 @@
-.modal-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;background:rgb(15 23 42 / .58);backdrop-filter:blur(5px)}
-.modal{width:min(100%,520px);background:#fff;border:1px solid rgb(15 23 42 / .08);border-radius:24px;padding:32px;box-shadow:0 24px 70px rgb(15 23 42 / .28);animation:modal-enter .18s ease-out}
-.modal h2{margin:0;color:#172033;font-size:clamp(1.55rem,3vw,2rem);line-height:1.15;letter-spacing:-.025em}
-.modal p{margin:16px 0 24px;color:#475569;font-size:1rem;line-height:1.6}
-.modal label{display:grid;gap:10px;color:#172033;font-size:.9rem;font-weight:700}
-.modal select,.modal textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:12px;background:#fff;color:#172033;font:inherit;padding:13px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.modal-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;background:color-mix(in srgb,var(--ui-text) 58%,transparent);backdrop-filter:blur(5px)}
+.modal{width:min(100%,520px);background:var(--ui-surface);border:1px solid var(--ui-border);border-radius:24px;padding:32px;box-shadow:0 24px 70px var(--ui-shadow);animation:modal-enter .18s ease-out}
+.modal h2{margin:0;color:var(--ui-text);font-size:clamp(1.55rem,3vw,2rem);line-height:1.15;letter-spacing:-.025em}
+.modal p{margin:16px 0 24px;color:var(--ui-text-muted);font-size:1rem;line-height:1.6}
+.modal label{display:grid;gap:10px;color:var(--ui-text);font-size:.9rem;font-weight:700}
+.modal select,.modal textarea{width:100%;box-sizing:border-box;border:1px solid var(--ui-border);border-radius:12px;background:var(--ui-surface-low);color:var(--ui-text);font:inherit;padding:13px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
 .modal select{min-height:48px;cursor:pointer}
 .modal textarea{min-height:120px;max-height:240px;resize:vertical;line-height:1.4}
-.modal select:focus,.modal textarea:focus{border-color:#a3e635;box-shadow:0 0 0 4px rgb(163 230 53 / .22)}
-.modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:30px;padding-top:22px;border-top:1px solid #e2e8f0}
+.modal select:focus,.modal textarea:focus{border-color:var(--ui-accent);box-shadow:0 0 0 4px var(--ui-focus-ring)}
+.modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:30px;padding-top:22px;border-top:1px solid var(--ui-border)}
 .modal-actions button{min-width:108px;min-height:46px;border-radius:12px}
-.modal-actions .secondary{background:transparent;border:1px solid #cbd5e1;color:#334155}
-.modal-actions .secondary:hover{background:#f8fafc}
+.modal-actions .secondary{background:transparent;border:1px solid var(--ui-border);color:var(--ui-text)}
+.modal-actions .secondary:hover{background:var(--ui-hover)}
 @keyframes modal-enter{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .app-shell.dark .modal-backdrop{background:rgb(2 6 23 / .72)}
 .app-shell.dark .modal{background:#262b36;border-color:#ffffff1a;color:#f8fafc}
@@ -21,4 +21,4 @@
 .app-shell.dark .modal-actions .secondary{border-color:#475569;color:#e2e8f0}
 .app-shell.dark .modal-actions .secondary:hover{background:#334155}
 @media (max-width:520px){.modal{padding:24px;border-radius:20px}.modal-actions{flex-direction:column-reverse;align-items:stretch}.modal-actions button{width:100%}}
-.edit-modal{display:grid;gap:18px;border-radius:28px;background:#f4f3f1}.edit-modal .modal-actions{margin-top:4px}.edit-modal .MuiOutlinedInput-root{background:#fff}.app-shell.dark .edit-modal{background:#262427;color:#f1edef}.app-shell.dark .edit-modal .MuiOutlinedInput-root{background:#302d30;color:#f1edef}.app-shell.dark .edit-modal .MuiInputLabel-root{color:#d0c8cc}.app-shell.dark .edit-modal .MuiButton-contained{background:#ed4fb8;color:#351027}
+.edit-modal{display:grid;gap:18px;border-radius:28px;background:var(--ui-surface-container)}.edit-modal .modal-actions{margin-top:4px}.edit-modal .MuiOutlinedInput-root{background:var(--ui-surface-low)}.app-shell.dark .edit-modal{background:var(--ui-surface-container);color:var(--ui-text)}.app-shell.dark .edit-modal .MuiOutlinedInput-root{background:var(--ui-surface-low);color:var(--ui-text)}.app-shell.dark .edit-modal .MuiInputLabel-root{color:var(--ui-text-muted)}.app-shell.dark .edit-modal .MuiButton-contained{background:var(--ui-accent);color:var(--ui-on-accent)}

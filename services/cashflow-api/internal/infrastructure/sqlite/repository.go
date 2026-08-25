@@ -8,10 +8,63 @@ import (
 	"fmt"
 	"github.com/cashflow/desktop/api/internal/domain"
 	_ "modernc.org/sqlite"
+	"os"
 	"time"
 )
 
 type Repository struct{ DB *sql.DB }
+
+// Validate checks that an existing SQLite file is readable and is either empty
+// or a database created by a compatible CashFlow version. It never migrates or
+// changes the selected file.
+func Validate(path string) error {
+	header := make([]byte, 16)
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if _, err = file.Read(header); err != nil || string(header) != "SQLite format 3\x00" {
+		return errors.New("the selected file is not a valid SQLite database")
+	}
+	db, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var integrity string
+	if err = db.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil {
+		return err
+	}
+	if integrity != "ok" {
+		return fmt.Errorf("the selected SQLite database is corrupt: %s", integrity)
+	}
+	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type = 'table'")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	tables := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err = rows.Scan(&name); err != nil {
+			return err
+		}
+		tables[name] = true
+	}
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	if len(tables) == 0 {
+		return nil
+	}
+	for _, required := range []string{"schema_migrations", "users", "accounts", "categories", "transactions", "audit_events", "deletion_requests"} {
+		if !tables[required] {
+			return errors.New("the selected SQLite database does not match the CashFlow schema")
+		}
+	}
+	return nil
+}
 
 func Open(path string) (*Repository, error) {
 	db, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)")

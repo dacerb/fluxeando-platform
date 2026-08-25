@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { spawn, ChildProcess } from 'node:child_process';
 import net from 'node:net';
@@ -7,6 +8,29 @@ import net from 'node:net';
 let backend: ChildProcess | undefined;
 let mainWindow: BrowserWindow | undefined;
 let apiUrl = process.env.CASHFLOW_API_URL ?? '';
+type StorageConfig = { mode: 'local' | 'network'; dbPath: string };
+let storageConfig: StorageConfig | undefined;
+const defaultDatabasePath = () => path.join(app.getPath('userData'), 'cashflow.db');
+const newDefaultDatabasePath = () => {
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  let attempt = 0;
+  let candidate = path.join(app.getPath('userData'), `cashflow-${stamp}.db`);
+  while (fs.existsSync(candidate)) { attempt += 1; candidate = path.join(app.getPath('userData'), `cashflow-${stamp}-${attempt}.db`); }
+  return candidate;
+};
+const storageConfigPath = () => path.join(app.getPath('userData'), 'storage.json');
+function loadStorageConfig(): StorageConfig | undefined {
+  if (process.env.CASHFLOW_API_URL) return { mode: 'local', dbPath: defaultDatabasePath() };
+  try {
+    const value = JSON.parse(fs.readFileSync(storageConfigPath(), 'utf8')) as StorageConfig;
+    if ((value.mode === 'local' || value.mode === 'network') && typeof value.dbPath === 'string' && path.isAbsolute(value.dbPath)) return value;
+  } catch { /* A fresh install has no saved storage selection. */ }
+  return fs.existsSync(defaultDatabasePath()) ? { mode: 'local', dbPath: defaultDatabasePath() } : undefined;
+}
+function saveStorageConfig(config: StorageConfig) {
+  fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  fs.writeFileSync(storageConfigPath(), JSON.stringify(config), { encoding: 'utf8', mode: 0o600 });
+}
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -27,13 +51,40 @@ async function waitForApi() {
 }
 async function startBackend() {
   if (process.env.CASHFLOW_API_URL) { apiUrl = process.env.CASHFLOW_API_URL; await waitForApi(); return; }
+  if (!storageConfig) throw new Error('Storage must be configured before starting the local API');
   const port = await findFreePort();
   apiUrl = `http://127.0.0.1:${port}`;
   const executable = process.env.CASHFLOW_API_BIN ?? path.join(process.resourcesPath, 'cashflow-api', process.platform === 'win32' ? 'cashflow-api.exe' : 'cashflow-api');
-  const db = path.join(app.getPath('userData'), 'cashflow.db');
+  const db = storageConfig.dbPath;
+  fs.mkdirSync(path.dirname(db), { recursive: true });
   backend = spawn(executable, ['-db', db, '-addr', `127.0.0.1:${port}`], { stdio: 'ignore' });
   backend.on('error', error => console.error('Unable to start local Go API', error));
   await waitForApi();
+}
+async function stopBackend() {
+  const running = backend;
+  backend = undefined;
+  if (!running || running.exitCode !== null) return;
+  await new Promise<void>(resolve => {
+    const timeout = setTimeout(resolve, 1_500);
+    running.once('exit', () => { clearTimeout(timeout); resolve(); });
+    running.kill();
+  });
+}
+async function validateDatabase(dbPath: string) {
+  if (process.env.CASHFLOW_API_URL) {
+    const response = await fetch(`${apiUrl}/v1/storage/validate`, { method: 'POST', headers: { 'content-type': 'application/vnd.sqlite3' }, body: fs.readFileSync(dbPath), signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error(await response.text() || 'The selected SQLite database is not compatible with CashFlow');
+    return;
+  }
+  const executable = process.env.CASHFLOW_API_BIN ?? path.join(process.resourcesPath, 'cashflow-api', process.platform === 'win32' ? 'cashflow-api.exe' : 'cashflow-api');
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(executable, ['-db', dbPath, '-validate'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+    child.stderr?.on('data', chunk => { stderr += String(chunk); });
+    child.once('error', reject);
+    child.once('close', code => code === 0 ? resolve() : reject(new Error(stderr.trim() || 'The selected SQLite database is not compatible with CashFlow')));
+  });
 }
 async function apiRequest(_: Electron.IpcMainInvokeEvent, input: { path: string; method?: string; body?: unknown; token?: string }) {
   if (!input.path.startsWith('/v1/') && input.path !== '/health') throw new Error('Invalid API path');
@@ -74,10 +125,41 @@ function createWindow() {
 ipcMain.handle('cashflow:api', apiRequest);
 ipcMain.handle('cashflow:download', apiDownload);
 ipcMain.handle('cashflow:runtime', () => {
-  const dbPath = path.join(app.getPath('userData'), 'cashflow.db');
-  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageType: 'local_sqlite', dbPath };
+  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), storageType: storageConfig?.mode === 'network' ? 'network_sqlite' : 'local_sqlite', dbPath: storageConfig?.dbPath, defaultDbPath: defaultDatabasePath() };
 });
-app.whenReady().then(async () => { try { await startBackend(); } catch (error) { console.error('Unable to start local Go API', error); } createWindow(); });
+ipcMain.handle('cashflow:choose-database', async (_event, input: { dbPath?: string }) => {
+  const options: Electron.OpenDialogOptions = { title: 'Seleccionar base de datos SQLite', defaultPath: input.dbPath || storageConfig?.dbPath || defaultDatabasePath(), properties: ['openFile'], filters: [{ name: 'SQLite', extensions: ['db', 'sqlite', 'sqlite3'] }] };
+  const result = await (mainWindow ? dialog.showOpenDialog(mainWindow, options) : dialog.showOpenDialog(options));
+  if (result.canceled) return undefined;
+  const selectedPath = result.filePaths[0];
+  await validateDatabase(selectedPath);
+  return selectedPath;
+});
+ipcMain.handle('cashflow:choose-new-database', async (_event, input: { dbPath?: string }) => {
+  const options = { title: 'Crear base de datos SQLite', defaultPath: input.dbPath || newDefaultDatabasePath(), filters: [{ name: 'SQLite', extensions: ['db', 'sqlite', 'sqlite3'] }] };
+  const result = await (mainWindow ? dialog.showSaveDialog(mainWindow, options) : dialog.showSaveDialog(options));
+  return result.canceled ? undefined : result.filePath;
+});
+ipcMain.handle('cashflow:configure-storage', async (_event, input: StorageConfig) => {
+  if ((input.mode !== 'local' && input.mode !== 'network') || !input.dbPath || !path.isAbsolute(input.dbPath)) throw new Error('Invalid storage configuration');
+  await validateDatabase(input.dbPath);
+  storageConfig = { mode: input.mode, dbPath: input.dbPath };
+  saveStorageConfig(storageConfig);
+  await stopBackend();
+  await startBackend();
+  return { ...storageConfig };
+});
+ipcMain.handle('cashflow:create-storage', async (_event, input: { mode: StorageConfig['mode']; dbPath?: string }) => {
+  const dbPath = input.dbPath || newDefaultDatabasePath();
+  if ((input.mode !== 'local' && input.mode !== 'network') || !path.isAbsolute(dbPath)) throw new Error('Invalid storage configuration');
+  if (fs.existsSync(dbPath)) throw new Error('A database already exists at that location');
+  storageConfig = { mode: input.mode, dbPath };
+  saveStorageConfig(storageConfig);
+  await stopBackend();
+  await startBackend();
+  return { ...storageConfig };
+});
+app.whenReady().then(async () => { storageConfig = loadStorageConfig(); try { if (storageConfig) await startBackend(); } catch (error) { console.error('Unable to start local Go API', error); } createWindow(); });
 app.on('before-quit', () => backend?.kill());
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => createWindow());

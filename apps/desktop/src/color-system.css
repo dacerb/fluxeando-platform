@@ -5,61 +5,120 @@
  */
 :root {
   --ui-font-family: Roboto, Inter, system-ui, sans-serif;
-  --ui-canvas: var(--m3-background, #fffbff);
-  --ui-surface: var(--m3-surface, #fffbff);
-  --ui-surface-low: var(--m3-surface-container-low, #f9f3ed);
-  --ui-surface-container: var(--m3-surface-container, #f3ede7);
-  --ui-surface-high: var(--m3-surface-container-high, #ede7e1);
-  --ui-surface-highest: var(--m3-surface-container-highest, #e7e1db);
-  --ui-text: var(--m3-on-surface, #1e1b18);
-  --ui-text-muted: var(--m3-on-surface-variant, #4b4540);
-  --ui-text-disabled: color-mix(in srgb, var(--m3-on-surface-variant, #4b4540) 48%, transparent);
-  --ui-border: var(--m3-outline-variant, #cec5bf);
-  --ui-border-strong: var(--m3-outline, #7c7570);
-  --ui-accent: var(--m3-primary, #5f5e5a);
-  --ui-on-accent: var(--m3-on-primary, #ffffff);
-  --ui-accent-container: var(--m3-primary-container, #e6e2de);
-  --ui-on-accent-container: var(--m3-on-primary-container, #1c1b18);
-  --ui-secondary: var(--m3-secondary, #625f5b);
-  --ui-secondary-container: var(--m3-secondary-container, #e7e2dd);
-  --ui-tertiary: var(--m3-tertiary, #785e47);
-  --ui-danger: var(--m3-error, #ba1a1a);
-  --ui-on-danger: var(--m3-on-error, #ffffff);
-  --ui-danger-container: var(--m3-error-container, #ffdad6);
-  --ui-on-danger-container: var(--m3-on-error-container, #410002);
+  --ui-accent: #FA5F1A;
+  --ui-on-accent: #252525;
   --ui-hover: color-mix(in srgb, var(--ui-accent) 10%, var(--ui-surface-container-high));
   --ui-selected: color-mix(in srgb, var(--ui-accent) 18%, var(--ui-surface-container-high));
   --ui-focus-ring: color-mix(in srgb, var(--ui-accent) 46%, transparent);
-  --ui-shadow: color-mix(in srgb, var(--m3-on-surface, #1e1b18) 14%, transparent);
-  --ui-sidebar: var(--m3-inverse-surface, #33302d);
-  --ui-on-sidebar: var(--m3-inverse-on-surface, #f7f0ea);
-  --ui-menu-background: #212529;
-}
-
-body[data-color-mode='dark'] {
-  --ui-sidebar: var(--m3-surface-container-low);
-  --ui-selected: color-mix(in srgb, var(--ui-accent) 26%, var(--ui-surface-container-high));
-  --ui-on-sidebar: var(--m3-on-surface);
-}
-
-/* En modo oscuro la superficie completa comparte el tono base del sidebar. */
-.app-shell.dark {
-  --ui-canvas: #212529 !important;
-  --ui-surface: #212529 !important;
-  --ui-surface-low: #212529 !important;
-  --ui-surface-container: #212529 !important;
-  --ui-surface-high: #212529 !important;
-  --ui-surface-highest: #212529 !important;
-  background: #212529 !important;
+  --ui-shadow: color-mix(in srgb, var(--ui-text) 14%, transparent);
 }
 
 body[data-color-mode='light'] {
-  --ui-selected: color-mix(in srgb, var(--ui-accent) 30%, var(--ui-surface-container-high));
+  --ui-canvas: #FFFFFF;
+  --ui-surface: #FFFFFF;
+  --ui-surface-low: #F7F0F0;
+  --ui-surface-container: #F7F0F0;
+  --ui-surface-high: color-mix(in srgb, #F7F0F0 94%, #252525);
+  --ui-surface-highest: color-mix(in srgb, #F7F0F0 88%, #252525);
+  --ui-field: #FFFFFF;
+  --ui-text: #252525;
+  --ui-text-muted: color-mix(in srgb, #252525 66%, #FFFFFF);
+  --ui-text-disabled: color-mix(in srgb, #252525 42%, transparent);
+  --ui-border: color-mix(in srgb, #252525 16%, #FFFFFF);
+  --ui-border-strong: color-mix(in srgb, #252525 44%, #FFFFFF);
+  --ui-accent-container: color-mix(in srgb, #FA5F1A 14%, #F7F0F0);
+  --ui-on-accent-container: #252525;
+  --ui-secondary: #252525;
+  --ui-secondary-container: #F7F0F0;
+  --ui-tertiary: #FA5F1A;
+  --ui-danger: #9F3210;
+  --ui-on-danger: #FFFFFF;
+  --ui-danger-container: color-mix(in srgb, #FA5F1A 14%, #FFFFFF);
+  --ui-on-danger-container: #62200C;
+  --ui-sidebar: #F7F0F0;
+  --ui-on-sidebar: #252525;
+  --ui-menu-background: #F7F0F0;
+  --ui-selected: #FA5F1A;
+  --m3-surface-container-lowest: #FFFFFF;
+}
+
+body[data-color-mode='dark'] {
+  --ui-canvas: #181818;
+  --ui-surface: #252525;
+  --ui-surface-low: #252525;
+  --ui-surface-container: #252525;
+  --ui-surface-high: color-mix(in srgb, #252525 88%, #FFFFFF);
+  --ui-surface-highest: color-mix(in srgb, #252525 82%, #FFFFFF);
+  --ui-field: #252525;
+  --ui-text: #FFFFFF;
+  --ui-text-muted: color-mix(in srgb, #FFFFFF 62%, #252525);
+  --ui-text-disabled: color-mix(in srgb, #FFFFFF 38%, transparent);
+  --ui-border: color-mix(in srgb, #FFFFFF 14%, #252525);
+  --ui-border-strong: color-mix(in srgb, #FFFFFF 42%, #252525);
+  --ui-accent-container: color-mix(in srgb, #FA5F1A 22%, #252525);
+  --ui-on-accent-container: #FFFFFF;
+  --ui-secondary: #FFFFFF;
+  --ui-secondary-container: #252525;
+  --ui-tertiary: #FA5F1A;
+  --ui-danger: #FF8A5C;
+  --ui-on-danger: #252525;
+  --ui-danger-container: color-mix(in srgb, #FA5F1A 24%, #252525);
+  --ui-on-danger-container: #FFFFFF;
+  --ui-sidebar: #252525;
+  --ui-on-sidebar: #FFFFFF;
+  --ui-menu-background: #252525;
+  --ui-selected: #FA5F1A;
+  --m3-surface-container-lowest: #252525;
+}
+
+.app-shell.dark { background: var(--ui-canvas) !important; }
+.app-shell .app-content { background: var(--ui-canvas) !important; }
+.app-content > header {
+  background: transparent !important;
+  color: var(--ui-text) !important;
+  border-bottom: 0 !important;
+}
+.app-content > header > div:first-child {
+  color: var(--ui-text);
+}
+.app-content > header > div:first-child h1 {
+  color: var(--ui-text) !important;
+}
+.app-content > header > div:first-child > small {
+  color: var(--ui-text-muted) !important;
+}
+.app-content > header > div:first-child .eyebrow {
+  background: var(--ui-text) !important;
+  color: var(--ui-canvas) !important;
+  border-bottom: 6px solid var(--ui-accent);
+}
+.app-content > header .MuiFormControlLabel-label,
+.app-content > header .header-settings-button {
+  color: var(--ui-text) !important;
+}
+.app-sidebar .tabs button.selected,
+.app-shell.dark .app-sidebar .tabs button.selected {
+  background: var(--ui-accent) !important;
+  color: var(--ui-on-accent) !important;
+}
+.app-shell .app-content input,
+.app-shell .app-content select,
+.app-shell .app-content textarea,
+.app-shell .app-content .MuiOutlinedInput-root {
+  background: var(--ui-field) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-strong) !important;
+}
+.app-shell .app-content .MuiInputBase-input,
+.app-shell .app-content input::placeholder,
+.app-shell .app-content textarea::placeholder {
+  color: var(--ui-text) !important;
+  opacity: 1 !important;
 }
 
 html, body, #root { min-height: 100%; }
 body { background: var(--ui-canvas) !important; color: var(--ui-text); font-family: var(--ui-font-family) !important; }
-body[data-color-mode='dark'] { background: #212529 !important; }
+body[data-color-mode='dark'] { background: var(--ui-canvas) !important; }
 button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInputBase-root, .MuiMenuItem-root, .MuiChip-root, .MuiFormLabel-root {
   font-family: var(--ui-font-family) !important;
 }
@@ -90,7 +149,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   z-index: 0;
   overflow: visible;
   background: transparent !important;
-  color: #ffffff !important;
+  color: var(--ui-on-accent) !important;
   box-shadow: none !important;
 }
 .app-sidebar .tabs button.selected::before,
@@ -101,7 +160,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
   inset: 8px 0;
   border: 0;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--ui-accent) 72%, #212529);
+  background: var(--ui-accent);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--ui-accent) 24%, transparent);
 }
 .app-shell.dark .app-sidebar .tabs button.selected::before {
@@ -110,7 +169,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-sidebar .tabs button.selected > *,
 .app-shell.dark .app-sidebar .tabs button.selected > * { position: relative; z-index: 1; }
 .app-sidebar .tabs button.selected svg,
-.app-shell.dark .app-sidebar .tabs button.selected svg { color: #ffffff !important; }
+.app-shell.dark .app-sidebar .tabs button.selected svg { color: var(--ui-on-accent) !important; }
 
 .app-content > header { border-color: var(--ui-border) !important; }
 .eyebrow {
@@ -301,20 +360,21 @@ body .MuiPickersPopper-root button.MuiPickersDay-root.Mui-selected { background:
 .MuiPickersPopper-root .MuiPickersArrowSwitcher-root { gap: 2px !important; }
 
 .auth-shell { background: var(--ui-canvas) !important; }
-.auth-card { background: #fff !important; border-color: var(--ui-border) !important; box-shadow: 0 20px 60px var(--ui-shadow) !important; color: var(--ui-text) !important; }
+.auth-card { background: var(--ui-surface) !important; border-color: var(--ui-border) !important; box-shadow: 0 20px 60px var(--ui-shadow) !important; color: var(--ui-text) !important; }
 .auth-card p, .brand span, .runtime-meta { color: var(--ui-text-muted) !important; }
+.brand strong { color: var(--ui-text) !important; }
 .splash { background: var(--ui-canvas) !important; }
 .login-transition { background: var(--ui-canvas) !important; }
 body[data-color-mode='dark'] .auth-shell,
 body[data-color-mode='dark'] .splash,
-body[data-color-mode='dark'] .login-transition { background: #212529 !important; }
+body[data-color-mode='dark'] .login-transition { background: var(--ui-canvas) !important; }
 
 /* Aura ambiental de la pantalla de acceso: más presencia sin competir con el formulario. */
 .auth-shell {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: #fff !important;
+  background: var(--ui-canvas) !important;
 }
 .auth-shell::before {
   content: '';
@@ -335,17 +395,13 @@ body[data-color-mode='dark'] .login-transition { background: #212529 !important;
   position: relative;
   z-index: 1;
 }
-body[data-color-mode='dark'] .auth-shell {
-  background: #212529 !important;
-}
-body[data-color-mode='dark'] .auth-card {
-  background: #262427 !important;
-}
+body[data-color-mode='dark'] .auth-shell { background: var(--ui-canvas) !important; }
+body[data-color-mode='dark'] .auth-card { background: var(--ui-surface-container) !important; }
 body[data-color-mode='dark'] .auth-shell::before {
   background: radial-gradient(
     ellipse at 50% 48%,
-    rgb(237 79 184 / 0.28) 0,
-    rgb(237 79 184 / 0.13) 25%,
+    color-mix(in srgb, var(--ui-accent) 28%, transparent) 0,
+    color-mix(in srgb, var(--ui-accent) 13%, transparent) 25%,
     transparent 56%
   );
 }
@@ -606,7 +662,7 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
 /* En oscuro se invierte el contraste del control de tema: thumb claro, icono oscuro. */
 body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
   background: #f5f5f5 !important;
-  color: #212529 !important;
+  color: var(--ui-canvas) !important;
 }
 body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
   background: var(--ui-accent) !important;
@@ -835,4 +891,561 @@ body[data-color-mode='dark'] .theme-switch .MuiFormControlLabel-label,
 }
 .language-switch .MuiSwitch-switchBase.Mui-checked .switch-language-code {
   color: #000 !important;
+}
+
+/* Controles compartidos: no introducen una cuarta paleta fuera de los tokens. */
+:root {
+  --ui-switch-track: var(--ui-border-strong);
+  --ui-switch-thumb-off: var(--ui-surface-highest);
+  --ui-switch-icon-off: var(--ui-text);
+  --ui-switch-thumb-on: var(--ui-text);
+  --ui-switch-icon-on: var(--ui-canvas);
+}
+.MuiSwitch-root .MuiSwitch-track,
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+body[data-color-mode='dark'] .MuiSwitch-root .MuiSwitch-track,
+body[data-color-mode='dark'] .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+.cashflow-switch .MuiSwitch-track,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background: var(--ui-switch-track) !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb,
+.cashflow-switch .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
+  background: var(--ui-switch-thumb-off) !important;
+  color: var(--ui-switch-icon-off) !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background: var(--ui-switch-thumb-on) !important;
+  color: var(--ui-switch-icon-on) !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb svg,
+.cashflow-switch .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb svg,
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb span {
+  color: var(--ui-switch-icon-off) !important;
+}
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb svg,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb svg,
+.cashflow-switch.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb span {
+  color: var(--ui-switch-icon-on) !important;
+}
+body[data-color-mode='dark'] .language-switch .MuiFormControlLabel-label,
+body[data-color-mode='dark'] .theme-switch .MuiFormControlLabel-label,
+.app-shell.dark .language-switch .MuiFormControlLabel-label,
+.app-shell.dark .theme-switch .MuiFormControlLabel-label { color: var(--ui-text) !important; }
+
+.app-shell.dark .edit-modal,
+.app-shell.dark .edit-modal .MuiOutlinedInput-root {
+  background: var(--ui-surface-container) !important;
+  color: var(--ui-text) !important;
+}
+.app-shell.dark .edit-modal .MuiInputLabel-root { color: var(--ui-text-muted) !important; }
+.app-shell.dark .edit-modal .MuiButton-contained { background: var(--ui-accent) !important; color: var(--ui-on-accent) !important; }
+
+/* Referencia de la única paleta activa. Cada muestra revela su rol y hex al hover o foco. */
+.palette-grid-single { grid-template-columns: minmax(0, 1fr) !important; }
+.palette-reference { cursor: default !important; }
+.palette-swatch-set-five {
+  display: flex !important;
+  flex-flow: row nowrap !important;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 90px;
+  height: 36px;
+  overflow: visible !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 0 0 1px var(--ui-border) !important;
+  transform: none !important;
+  box-sizing: border-box;
+}
+.palette-swatch-set-five i {
+  display: block !important;
+  flex: 0 0 18px;
+  position: relative;
+  width: 18px;
+  height: 36px;
+  min-width: 18px;
+  min-height: 36px;
+  cursor: help;
+  outline: 0;
+}
+.palette-swatch-set-five i:first-child { border-radius: 18px 0 0 18px; }
+.palette-swatch-set-five i:last-child { border-radius: 0 18px 18px 0; }
+.palette-swatch-set-five i::after {
+  content: attr(data-color-detail);
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  width: max-content;
+  max-width: 180px;
+  padding: 6px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-surface-highest);
+  color: var(--ui-text);
+  box-shadow: 0 8px 18px var(--ui-shadow);
+  font-size: .72rem;
+  font-style: normal;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity .14s ease, transform .14s ease;
+}
+.palette-swatch-set-five i:hover::after,
+.palette-swatch-set-five i:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+.palette-swatch-set-five i:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
+
+/* Geometría global: esquinas discretas en superficies y controles. Los elementos
+   circulares (avatares, iconos y controles de selección) conservan su forma. */
+:root { --ui-radius: 6px; }
+.app-shell :is(.card, .material-card, .modal, .edit-modal, .settings-card, .auth-card,
+  .storage-path, .filter-menu, .filter-pills, .saved-filters, .management-list li,
+  .material-list .MuiListItem-root, .analytics-movement-item, .analytics-movement-kind,
+  .analytics-modal-summary > span, .runtime-log-entry, .runtime-log-copied),
+.MuiPaper-root,
+.MuiPopover-paper,
+.MuiMenu-paper,
+.MuiDialog-paper,
+.MuiPickersPopper-root .MuiPaper-root {
+  border-radius: var(--ui-radius) !important;
+}
+.app-shell :is(button, input, select, textarea, .MuiButton-root, .MuiOutlinedInput-root,
+  .MuiSelect-select, .MuiChip-root, .filter-pill, .void-action, .runtime-log-status,
+  .analytics-movement-meta > span, .app-sidebar .tabs button),
+.modal :is(select, textarea, button),
+.auth-card :is(button, input),
+.login-transition-logo,
+.auth-card,
+.login-progress {
+  border-radius: var(--ui-radius) !important;
+}
+.app-content table { border-radius: var(--ui-radius) !important; }
+
+/* Switches: una sola lectura en todos los contextos y estados. */
+.MuiSwitch-root .MuiSwitch-track,
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+.cashflow-switch .MuiSwitch-track,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  box-sizing: border-box !important;
+  background: #FFFFFF !important;
+  border: 2px solid var(--ui-accent) !important;
+  opacity: 1 !important;
+}
+.MuiSwitch-root .MuiSwitch-thumb,
+.MuiSwitch-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb,
+.cashflow-switch .MuiSwitch-thumb,
+.cashflow-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+}
+.MuiSwitch-root .MuiSwitch-thumb svg,
+.MuiSwitch-root .MuiSwitch-thumb span,
+.cashflow-switch .MuiSwitch-thumb svg,
+.cashflow-switch .MuiSwitch-thumb span,
+.language-switch .switch-language-code {
+  color: #000000 !important;
+}
+body .MuiSwitch-root .MuiSwitch-switchBase,
+body .cashflow-switch .MuiSwitch-switchBase,
+body .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked,
+body .cashflow-switch .MuiSwitch-switchBase.Mui-checked,
+body .MuiSwitch-root .MuiSwitch-switchBase svg,
+body .cashflow-switch .MuiSwitch-switchBase svg,
+body .MuiSwitch-root .MuiSwitch-switchBase .switch-language-code,
+body .cashflow-switch .MuiSwitch-switchBase .switch-language-code {
+  color: #000000 !important;
+}
+body .language-switch .MuiSwitch-switchBase:not(.Mui-checked) .switch-language-code,
+body .language-switch .MuiSwitch-switchBase.Mui-checked .switch-language-code {
+  color: #000000 !important;
+}
+
+/* La abreviatura de idioma comparte la caja y el centrado del icono de modo. */
+.language-switch .MuiSwitch-switchBase {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 2px !important;
+  box-sizing: border-box !important;
+}
+.language-switch .switch-language-code {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+/* El indicador ON/OFF usa la misma caja y tipografía que ES/EN. */
+.logger-switch.MuiSwitch-root {
+  width: 72px !important;
+}
+.logger-switch .MuiSwitch-switchBase {
+  display: grid !important;
+  place-items: center !important;
+  width: 40px !important;
+  height: 40px !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+}
+.logger-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(26px) !important;
+}
+.logger-switch .MuiSwitch-thumb {
+  display: grid !important;
+  place-items: center !important;
+  width: 36px !important;
+  height: 28px !important;
+  border-radius: 14px !important;
+}
+.logger-switch .switch-state-code {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  color: #000000 !important;
+  box-sizing: border-box !important;
+  padding-inline: 4px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+}
+
+/* La tarjeta de acceso sigue la misma jerarquía tonal que el resto del modo oscuro. */
+body[data-color-mode='dark'] .auth-card {
+  color: var(--ui-text) !important;
+}
+body[data-color-mode='dark'] .auth-card p,
+body[data-color-mode='dark'] .auth-card .brand span,
+body[data-color-mode='dark'] .auth-card .runtime-meta {
+  color: var(--ui-text-muted) !important;
+}
+body[data-color-mode='dark'] .auth-card .brand strong,
+body[data-color-mode='dark'] .auth-card h1,
+body[data-color-mode='dark'] .auth-topbar .MuiFormControlLabel-label,
+body[data-color-mode='dark'] .auth-topbar .header-settings-button {
+  color: var(--ui-text) !important;
+}
+body[data-color-mode='dark'] .auth-card input,
+body[data-color-mode='dark'] .auth-card input::placeholder {
+  color: var(--ui-text) !important;
+  opacity: 1 !important;
+}
+
+/* Los switches no heredan la superficie del modo: blanco, negro y acento. */
+body .MuiSwitch-root .MuiSwitch-track,
+body .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+body .cashflow-switch .MuiSwitch-track,
+body .cashflow-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  border: 2px solid var(--ui-accent) !important;
+  opacity: 1 !important;
+}
+body[data-color-mode] .MuiSwitch-root .MuiSwitch-track,
+body[data-color-mode] .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+body[data-color-mode] .cashflow-switch .MuiSwitch-track,
+body[data-color-mode] .cashflow-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+}
+
+/* Superficies estables: no se recolorean ni saltan al pasar el cursor. */
+.app-shell .app-content :is(.card, .material-card):hover {
+  background: var(--ui-surface-container) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.app-shell .app-content button:hover:not(:disabled),
+.app-shell .app-content .MuiButton-root:hover:not(:disabled) {
+  transform: none !important;
+  box-shadow: none !important;
+}
+.app-shell .app-content button:not(.secondary):hover:not(:disabled) {
+  background: var(--ui-accent) !important;
+  color: var(--ui-on-accent) !important;
+}
+.app-shell .app-content :is(.secondary, .tabs button):hover:not(:disabled) {
+  background: var(--ui-surface-high) !important;
+  color: var(--ui-text) !important;
+}
+
+/* Campos consistentes, incluso cuando el navegador autocompleta credenciales. */
+.app-shell .app-content input:-webkit-autofill,
+.app-shell .app-content input:-webkit-autofill:hover,
+.app-shell .app-content input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ui-text) !important;
+  caret-color: var(--ui-text);
+  box-shadow: 0 0 0 1000px var(--ui-field) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+.app-shell .app-content :is(input, select, textarea):disabled,
+.app-shell .app-content .Mui-disabled {
+  background: var(--ui-surface-high) !important;
+  color: var(--ui-text-disabled) !important;
+  opacity: 1 !important;
+}
+
+/* Alta de usuarios: todos los campos comparten la misma superficie topo. */
+.app-shell .app-content .user-create-form > input[name="displayName"] {
+  background: var(--ui-field) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-strong) !important;
+}
+.app-shell .app-content .user-create-form > input.user-email {
+  background: var(--ui-field) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-strong) !important;
+}
+.app-shell .app-content .user-create-form .password-field > input[name="password"] {
+  background: var(--ui-field) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border-strong) !important;
+}
+.app-shell .app-content .user-create-form .user-role-select .MuiOutlinedInput-root {
+  background: var(--ui-field) !important;
+  color: var(--ui-text) !important;
+}
+.app-shell .app-content .user-create-form .user-role-select :is(.MuiInputLabel-root, .MuiSvgIcon-root) {
+  color: var(--ui-text) !important;
+}
+.app-shell .app-content .user-create-form > input.user-email:-webkit-autofill,
+.app-shell .app-content .user-create-form > input.user-email:-webkit-autofill:hover,
+.app-shell .app-content .user-create-form > input.user-email:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ui-text) !important;
+  caret-color: var(--ui-text);
+  box-shadow: 0 0 0 1000px var(--ui-field) inset !important;
+}
+
+/* Configuración es una acción secundaria: sólo el ícono, sin bloque de acento. */
+.app-shell .app-content .header-settings-button,
+.app-shell .app-content .header-settings-button.MuiIconButton-colorPrimary,
+.app-shell .app-content .header-settings-button:hover,
+.app-shell .app-content .header-settings-button.Mui-focusVisible {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--ui-text) !important;
+}
+.app-shell .app-content .header-settings-button svg {
+  color: var(--ui-text) !important;
+}
+
+/* Las flechas acompañan su superficie; no llevan una pastilla propia. */
+.app-shell .app-content .settings-chevron {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* El sol/luna necesita aire propio dentro del switch, igual que ES/EN y ON/OFF. */
+.theme-switch .MuiSwitch-thumb {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  line-height: 0 !important;
+}
+.theme-switch .MuiSwitch-thumb svg {
+  display: block !important;
+  width: 10px !important;
+  height: 10px !important;
+  font-size: 10px !important;
+  transform: translateY(-1px) !important;
+}
+body .MuiSwitch-root .MuiSwitch-switchBase,
+body .MuiSwitch-root .MuiSwitch-switchBase.Mui-checked,
+body .cashflow-switch .MuiSwitch-switchBase,
+body .cashflow-switch .MuiSwitch-switchBase.Mui-checked,
+body .MuiSwitch-root .MuiSwitch-switchBase svg,
+body .MuiSwitch-root .MuiSwitch-switchBase span,
+body .cashflow-switch .MuiSwitch-switchBase svg,
+body .cashflow-switch .MuiSwitch-switchBase span {
+  color: #000000 !important;
+}
+
+/* ON/OFF se desplaza como switch, con texto centrado verticalmente y aire lateral. */
+.logger-switch .MuiSwitch-switchBase,
+.logger-switch .MuiSwitch-switchBase.Mui-checked {
+  display: grid !important;
+  place-items: center !important;
+  width: 42px !important;
+  height: 28px !important;
+  padding: 4px !important;
+}
+.logger-switch .MuiSwitch-switchBase.Mui-checked { transform: translateX(30px) !important; }
+.logger-switch .MuiSwitch-thumb {
+  width: 34px !important;
+  height: 20px !important;
+  padding: 0 4px !important;
+  border-radius: 10px !important;
+  box-sizing: border-box !important;
+}
+
+/* El selector de modo conserva el desplazamiento y centra el ícono en vertical. */
+.theme-switch .MuiSwitch-switchBase,
+.theme-switch .MuiSwitch-switchBase.Mui-checked {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 4px !important;
+}
+.theme-switch .MuiSwitch-switchBase.Mui-checked { transform: translateX(40px) !important; }
+.theme-switch .MuiSwitch-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  box-sizing: border-box !important;
+}
+
+/* ES/EN también se desplaza, con la abreviatura centrada verticalmente. */
+.language-switch .MuiSwitch-root {
+  width: 68px !important;
+  height: 28px !important;
+}
+.language-switch .MuiSwitch-switchBase,
+.language-switch .MuiSwitch-switchBase.Mui-checked {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 4px !important;
+}
+.language-switch .MuiSwitch-switchBase.Mui-checked { transform: translateX(40px) !important; }
+.language-switch .MuiSwitch-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  padding: 2px !important;
+  border-radius: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.amount-visibility-switch {
+  gap: 8px !important;
+  margin: 0 !important;
+  color: var(--ui-text) !important;
+}
+.amount-visibility-switch .MuiFormControlLabel-label {
+  color: var(--ui-text) !important;
+  font-weight: 700 !important;
+}
+
+/* Analítica separa encabezado, acciones y contenido con una jerarquía clara. */
+.app-content > header {
+  border-bottom: 1px solid var(--ui-border) !important;
+}
+.app-content .analytics-shell {
+  margin-top: 22px !important;
+  border-top: 3px solid var(--ui-accent);
+}
+.app-content .analytics-actions {
+  min-height: 68px;
+  margin: 0 0 20px !important;
+  padding: 12px 16px !important;
+  background: color-mix(in srgb, var(--ui-surface-container) 72%, transparent) !important;
+  border-bottom: 1px solid var(--ui-border);
+  align-items: center;
+}
+
+/* Normalización final de modo e idioma: evita que estilos heredados agranden el control. */
+body .theme-switch .MuiSwitch-root,
+body .language-switch .MuiSwitch-root {
+  width: 68px !important;
+  height: 28px !important;
+  padding: 0 !important;
+}
+body .theme-switch .MuiSwitch-switchBase,
+body .language-switch .MuiSwitch-switchBase {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 4px !important;
+  box-sizing: border-box !important;
+}
+body .theme-switch .MuiSwitch-switchBase.Mui-checked,
+body .language-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(36px) !important;
+}
+body .theme-switch .MuiSwitch-thumb,
+body .language-switch .MuiSwitch-thumb {
+  display: grid !important;
+  place-items: center !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+  line-height: 0 !important;
+}
+body .theme-switch .MuiSwitch-input,
+body .language-switch .MuiSwitch-input {
+  width: 28px !important;
+  height: 28px !important;
+}
+body .theme-switch .MuiSwitch-thumb svg {
+  width: 10px !important;
+  height: 10px !important;
+  transform: translateY(-1px) !important;
+}
+body .theme-switch .MuiSwitch-switchBase:hover,
+body .theme-switch .MuiSwitch-switchBase.Mui-focusVisible,
+body .language-switch .MuiSwitch-switchBase:hover,
+body .language-switch .MuiSwitch-switchBase.Mui-focusVisible {
+  background: transparent !important;
+}
+body .theme-switch .MuiTouchRipple-root,
+body .language-switch .MuiTouchRipple-root {
+  display: none !important;
+}
+/* Sin halo coloreado al usar un switch: la interacción se expresa por la posición. */
+body .MuiSwitch-switchBase,
+body .MuiSwitch-switchBase.Mui-checked,
+body .MuiSwitch-switchBase:hover,
+body .MuiSwitch-switchBase.Mui-checked:hover,
+body .MuiSwitch-switchBase.Mui-focusVisible {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+body .MuiSwitch-root .MuiTouchRipple-root {
+  display: none !important;
+}
+
+/* El input nativo de MUI es sólo el área de interacción del switch, no un campo del login. */
+.auth-card .MuiSwitch-input {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  appearance: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+/* El input invisible no debe dibujar el foco cuadrado de los campos de texto. */
+body .MuiSwitch-input:focus,
+body .MuiSwitch-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Con teclado, el foco se muestra sobre el switch completo y conserva su forma. */
+body .MuiSwitch-root:has(.MuiSwitch-input:focus-visible) {
+  border-radius: 999px !important;
+  box-shadow: 0 0 0 3px var(--ui-focus-ring) !important;
 }

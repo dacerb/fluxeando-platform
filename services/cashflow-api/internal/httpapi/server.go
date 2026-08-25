@@ -9,9 +9,12 @@ import (
 	"fmt"
 	"github.com/cashflow/desktop/api/internal/application"
 	"github.com/cashflow/desktop/api/internal/domain"
+	"github.com/cashflow/desktop/api/internal/infrastructure/sqlite"
 	"github.com/google/uuid"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,9 +22,10 @@ import (
 )
 
 type Server struct {
-	App  *application.Service
-	Log  *slog.Logger
-	Logs *logStore
+	App       *application.Service
+	Log       *slog.Logger
+	Logs      *logStore
+	storageMu sync.RWMutex
 }
 
 type logEvent struct {
@@ -71,6 +75,9 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /health", s.health)
 	m.HandleFunc("GET /v1/setup", s.setup)
 	m.HandleFunc("POST /v1/setup/initialize", s.initialize)
+	m.HandleFunc("POST /v1/storage/import", s.importStorage)
+	m.HandleFunc("POST /v1/storage/validate", s.validateStorage)
+	m.HandleFunc("POST /v1/storage/new", s.newStorage)
 	m.HandleFunc("POST /v1/auth/login", s.login)
 	m.HandleFunc("POST /v1/auth/logout", s.logout)
 	m.HandleFunc("POST /v1/auth/recover", s.recover)
@@ -148,6 +155,10 @@ func responseForLog(path string, body []byte) string {
 func correlation(ctx context.Context) string { v, _ := ctx.Value(correlationKey{}).(string); return v }
 func (s *Server) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/storage/import" && r.URL.Path != "/v1/storage/validate" && r.URL.Path != "/v1/storage/new" {
+			s.storageMu.RLock()
+			defer s.storageMu.RUnlock()
+		}
 		cid := r.Header.Get("X-Correlation-ID")
 		if cid == "" {
 			cid = uuid.NewString()
@@ -166,6 +177,110 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 		}
 		s.Log.Info(event.Message, "correlation_id", event.CorrelationID, "component", event.Component, "layer", event.Layer, "operation", event.Operation, "status_code", event.StatusCode, "duration_ms", event.DurationMS)
 	})
+}
+func (s *Server) importStorage(w http.ResponseWriter, r *http.Request) {
+	const maxDatabaseSize = 100 << 20
+	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxDatabaseSize))
+	if err != nil || len(payload) < 16 || string(payload[:16]) != "SQLite format 3\x00" {
+		fail(w, fmt.Errorf("invalid SQLite database"))
+		return
+	}
+	file, err := os.CreateTemp("", "cashflow-selected-*.db")
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	path := file.Name()
+	defer func() { _ = file.Close() }()
+	if err := file.Chmod(0o600); err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	if _, err := file.Write(payload); err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	repo, err := sqlite.Open(path)
+	if err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	s.storageMu.Lock()
+	previous := s.App.Repo
+	s.App = application.New(repo)
+	_ = previous.Close()
+	s.storageMu.Unlock()
+	write(w, http.StatusOK, map[string]string{"storage": "imported_sqlite"})
+}
+
+func (s *Server) validateStorage(w http.ResponseWriter, r *http.Request) {
+	const maxDatabaseSize = 100 << 20
+	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxDatabaseSize))
+	if err != nil || len(payload) < 16 || string(payload[:16]) != "SQLite format 3\x00" {
+		fail(w, fmt.Errorf("invalid SQLite database"))
+		return
+	}
+	file, err := os.CreateTemp("", "cashflow-validate-*.db")
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	path := file.Name()
+	defer os.Remove(path)
+	if err = file.Chmod(0o600); err == nil {
+		_, err = file.Write(payload)
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if err = sqlite.Validate(path); err != nil {
+		fail(w, err)
+		return
+	}
+	write(w, http.StatusOK, map[string]string{"storage": "valid_sqlite"})
+}
+
+func (s *Server) newStorage(w http.ResponseWriter, r *http.Request) {
+	file, err := os.CreateTemp("", "cashflow-new-*.db")
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	path := file.Name()
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	repo, err := sqlite.Open(path)
+	if err != nil {
+		_ = os.Remove(path)
+		fail(w, err)
+		return
+	}
+	s.storageMu.Lock()
+	previous := s.App.Repo
+	s.App = application.New(repo)
+	_ = previous.Close()
+	s.storageMu.Unlock()
+	write(w, http.StatusOK, map[string]string{"storage": "new_sqlite"})
 }
 
 func jsonBody(r *http.Request, v any) error {
