@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, safeStorage } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -158,6 +158,11 @@ ipcMain.handle('cashflow:remembered-session:set', (_event, token: string) => { i
 ipcMain.handle('cashflow:remembered-session:clear', () => clearRememberedSession());
 ipcMain.handle('cashflow:runtime', () => {
   return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
+});
+ipcMain.handle('cashflow:reveal-database', () => {
+  if (storageConfig?.mode !== 'local' || !storageConfig.dbPath) throw new Error('A local database is not configured');
+  if (!fs.existsSync(storageConfig.dbPath)) throw new Error('The configured database file could not be found');
+  shell.showItemInFolder(storageConfig.dbPath);
 });
 ipcMain.handle('cashflow:choose-database', async (_event, input: { dbPath?: string }) => {
   const savedDatabasePath = storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined;

@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('cashflow', {
   download: (input: { path: string; token?: string }) => ipcRenderer.invoke('cashflow:download', input),
   rememberedSession: { get: () => ipcRenderer.invoke('cashflow:remembered-session:get'), set: (token: string) => ipcRenderer.invoke('cashflow:remembered-session:set', token), clear: () => ipcRenderer.invoke('cashflow:remembered-session:clear') },
   runtime: () => ipcRenderer.invoke('cashflow:runtime'),
+  revealDatabase: () => ipcRenderer.invoke('cashflow:reveal-database'),
   chooseDatabase: (input: { dbPath?: string }) => ipcRenderer.invoke('cashflow:choose-database', input),
   chooseNewDatabase: (input: { dbPath?: string }) => ipcRenderer.invoke('cashflow:choose-new-database', input),
   configureStorage: (input: { mode: 'local' | 'network'; dbPath: string }) => ipcRenderer.invoke('cashflow:configure-storage', input),
