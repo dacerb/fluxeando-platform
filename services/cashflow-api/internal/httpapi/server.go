@@ -79,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/storage/validate", s.validateStorage)
 	m.HandleFunc("POST /v1/storage/new", s.newStorage)
 	m.HandleFunc("POST /v1/auth/login", s.login)
+	m.HandleFunc("GET /v1/auth/session", s.session)
 	m.HandleFunc("POST /v1/auth/logout", s.logout)
 	m.HandleFunc("POST /v1/auth/recover", s.recover)
 	m.HandleFunc("POST /v1/auth/change-password", s.changePassword)
@@ -370,17 +371,32 @@ func (s *Server) initialize(w http.ResponseWriter, r *http.Request) {
 	write(w, 201, map[string]string{"recovery_code": code})
 }
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	var b struct{ Email, Password string }
+	var b struct {
+		Email, Password string
+		RememberSession bool
+	}
 	if e := jsonBody(r, &b); e != nil {
 		fail(w, e)
 		return
 	}
-	t, u, e := s.App.Login(r.Context(), b.Email, b.Password, correlation(r.Context()))
+	var t string
+	var u domain.User
+	var e error
+	if b.RememberSession {
+		t, u, e = s.App.LoginRemembered(r.Context(), b.Email, b.Password, correlation(r.Context()))
+	} else {
+		t, u, e = s.App.Login(r.Context(), b.Email, b.Password, correlation(r.Context()))
+	}
 	if e != nil {
 		fail(w, e)
 		return
 	}
 	write(w, 200, map[string]any{"token": t, "user": u})
+}
+func (s *Server) session(w http.ResponseWriter, r *http.Request) {
+	if u, ok := s.actor(w, r); ok {
+		write(w, 200, map[string]any{"user": u})
+	}
 }
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if actor, ok := s.App.Session(token(r)); ok {

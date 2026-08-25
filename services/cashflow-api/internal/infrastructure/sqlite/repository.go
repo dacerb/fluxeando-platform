@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-type Repository struct{ DB *sql.DB }
+type Repository struct {
+	DB    *sql.DB
+	mysql bool
+}
 
 // Validate checks that an existing SQLite file is readable and is either empty
 // or a database created by a compatible CashFlow version. It never migrates or
@@ -195,6 +198,18 @@ INSERT INTO schema_migrations(version, applied_at) VALUES (6, datetime('now'));`
 		_, err = r.DB.ExecContext(ctx, `ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;
 INSERT INTO schema_migrations(version, applied_at) VALUES (7, datetime('now'));`)
 	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=8").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `CREATE TABLE remembered_sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX remembered_sessions_user_id ON remembered_sessions(user_id);
+INSERT INTO schema_migrations(version, applied_at) VALUES (8, datetime('now'));`)
+	}
 	return err
 }
 func (r *Repository) Initialized(ctx context.Context) (bool, error) {
@@ -241,6 +256,31 @@ func (r *Repository) User(ctx context.Context, id string) (domain.User, error) {
 	err := r.DB.QueryRowContext(ctx, "SELECT id,email,display_name,role,active,must_change_password FROM users WHERE id=?", id).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword)
 	return u, err
 }
+func (r *Repository) CreateRememberedSession(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error {
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO remembered_sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)", tokenHash, userID, expiresAt.UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+func (r *Repository) RememberedSession(ctx context.Context, tokenHash string) (domain.User, bool) {
+	var u domain.User
+	var expiresAt string
+	err := r.DB.QueryRowContext(ctx, `SELECT u.id,u.email,u.display_name,u.role,u.active,u.must_change_password,s.expires_at
+		FROM remembered_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?`, tokenHash).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Role, &u.Active, &u.MustChangePassword, &expiresAt)
+	if err != nil || !u.Active {
+		return domain.User{}, false
+	}
+	expires, err := time.Parse(time.RFC3339Nano, expiresAt)
+	if err != nil || !expires.After(time.Now().UTC()) {
+		_, _ = r.DB.ExecContext(ctx, "DELETE FROM remembered_sessions WHERE token_hash=?", tokenHash)
+		return domain.User{}, false
+	}
+	return u, true
+}
+func (r *Repository) DeleteRememberedSession(ctx context.Context, tokenHash string) {
+	_, _ = r.DB.ExecContext(ctx, "DELETE FROM remembered_sessions WHERE token_hash=?", tokenHash)
+}
+func (r *Repository) DeleteRememberedSessionsForUser(ctx context.Context, userID string) {
+	_, _ = r.DB.ExecContext(ctx, "DELETE FROM remembered_sessions WHERE user_id=?", userID)
+}
 func (r *Repository) SetUserActive(ctx context.Context, id string, active bool) error {
 	_, err := r.DB.ExecContext(ctx, "UPDATE users SET active=?, updated_at=? WHERE id=?", active, time.Now().UTC().Format(time.RFC3339Nano), id)
 	return err
@@ -251,8 +291,19 @@ func (r *Repository) ActiveAdministratorCount(ctx context.Context) (int, error) 
 	return count, err
 }
 func (r *Repository) DeleteUser(ctx context.Context, id string) error {
-	_, err := r.DB.ExecContext(ctx, "DELETE FROM users WHERE id=?", id)
-	return err
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM remembered_sessions WHERE user_id=?", id); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "DELETE FROM users WHERE id=?", id); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
 func (r *Repository) CreateAccount(ctx context.Context, a domain.Account) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -631,7 +682,11 @@ func null(v string) any {
 }
 func (r *Repository) EnsureDefaultCategories(ctx context.Context) error {
 	for _, c := range []domain.Category{{ID: "seed-income", Name: "General income", Direction: "income", Active: true}, {ID: "seed-expense", Name: "General expense", Direction: "expense", Active: true}} {
-		_, e := r.DB.ExecContext(ctx, "INSERT OR IGNORE INTO categories(id,name,direction,active,created_at,updated_at) VALUES(?,?,?,?,?,?)", c.ID, c.Name, c.Direction, 1, time.Now().UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+		statement := "INSERT OR IGNORE INTO categories(id,name,direction,active,created_at,updated_at) VALUES(?,?,?,?,?,?)"
+		if r.mysql {
+			statement = "INSERT IGNORE INTO categories(id,name,direction,active,created_at,updated_at) VALUES(?,?,?,?,?,?)"
+		}
+		_, e := r.DB.ExecContext(ctx, statement, c.ID, c.Name, c.Direction, 1, time.Now().UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
 		if e != nil {
 			return fmt.Errorf("seed category: %w", e)
 		}

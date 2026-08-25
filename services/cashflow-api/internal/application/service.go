@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -145,11 +146,28 @@ func (s *Service) Initialize(ctx context.Context, email, name, password, correla
 	return code, e
 }
 func (s *Service) Login(ctx context.Context, email, password string, correlations ...string) (string, domain.User, error) {
+	return s.login(ctx, email, password, false, correlations...)
+}
+func (s *Service) LoginRemembered(ctx context.Context, email, password string, correlations ...string) (string, domain.User, error) {
+	return s.login(ctx, email, password, true, correlations...)
+}
+func (s *Service) login(ctx context.Context, email, password string, remember bool, correlations ...string) (string, domain.User, error) {
 	u, h, _, e := s.Repo.UserCredentials(ctx, strings.ToLower(email))
 	if e != nil || !verify(password, h) {
 		return "", domain.User{}, errors.New("invalid email or password")
 	}
 	token := uuid.NewString()
+	if remember {
+		bytes := make([]byte, 32)
+		if _, e = rand.Read(bytes); e != nil {
+			return "", domain.User{}, e
+		}
+		token = base64.RawURLEncoding.EncodeToString(bytes)
+		digest := sha256.Sum256([]byte(token))
+		if e = s.Repo.CreateRememberedSession(ctx, base64.RawURLEncoding.EncodeToString(digest[:]), u.ID, time.Now().UTC().Add(30*24*time.Hour)); e != nil {
+			return "", domain.User{}, e
+		}
+	}
 	s.mu.Lock()
 	s.sessions[token] = u
 	s.mu.Unlock()
@@ -166,9 +184,19 @@ func (s *Service) Session(token string) (domain.User, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	u, ok := s.sessions[token]
-	return u, ok
+	if ok {
+		return u, true
+	}
+	digest := sha256.Sum256([]byte(token))
+	return s.Repo.RememberedSession(context.Background(), base64.RawURLEncoding.EncodeToString(digest[:]))
 }
-func (s *Service) Logout(token string) { s.mu.Lock(); delete(s.sessions, token); s.mu.Unlock() }
+func (s *Service) Logout(token string) {
+	s.mu.Lock()
+	delete(s.sessions, token)
+	s.mu.Unlock()
+	digest := sha256.Sum256([]byte(token))
+	s.Repo.DeleteRememberedSession(context.Background(), base64.RawURLEncoding.EncodeToString(digest[:]))
+}
 func (s *Service) Recover(ctx context.Context, email, code, newPassword, correlation string) error {
 	if e := validatePassword(newPassword); e != nil {
 		return e
@@ -279,6 +307,7 @@ func (s *Service) invalidateUserSessions(userID string) {
 			delete(s.sessions, token)
 		}
 	}
+	s.Repo.DeleteRememberedSessionsForUser(context.Background(), userID)
 }
 func (s *Service) validateUserAdministration(ctx context.Context, actor domain.User, id string) (domain.User, error) {
 	if err := s.Require(actor, domain.RoleAdministrator); err != nil {

@@ -48,6 +48,31 @@ func TestOnboardingLoginTransactionAndAudit(t *testing.T) {
 	}
 }
 
+func TestRememberedSessionSurvivesServiceRestartAndCanBeRevoked(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	ctx := context.Background()
+	first := application.New(repo)
+	if _, err = first.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "c"); err != nil {
+		t.Fatal(err)
+	}
+	token, user, err := first.LoginRemembered(ctx, "admin@example.com", "a secure password")
+	if err != nil || token == "" || user.ID == "" {
+		t.Fatalf("remembered login: %v", err)
+	}
+	second := application.New(repo)
+	if restored, ok := second.Session(token); !ok || restored.ID != user.ID {
+		t.Fatal("remembered session was not restored after service restart")
+	}
+	second.Logout(token)
+	if _, ok := application.New(repo).Session(token); ok {
+		t.Fatal("remembered session remained valid after logout")
+	}
+}
+
 func TestRecoveryCodeCanOnlyBeUsedOnce(t *testing.T) {
 	repo, e := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
 	if e != nil {
