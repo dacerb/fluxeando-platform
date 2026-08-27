@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "pnpm --filter @cashflow/desktop dev",
     "build": "pnpm --filter @cashflow/desktop build",
+    "clean:workspace": "node scripts/clean-workspace.mjs",
+    "rebuild:clean": "node scripts/clean-workspace.mjs && corepack pnpm install --force && corepack pnpm build",
     "test": "cd services/cashflow-api && go test ./...",
     "lint": "pnpm --filter @cashflow/desktop lint"
   },

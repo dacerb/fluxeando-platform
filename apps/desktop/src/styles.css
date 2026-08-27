@@ -49,10 +49,12 @@ body[data-accent='graphite'] .sidebar-brand strong,body[data-accent='graphite'] 
 .header-actions{grid-template-columns:128px 140px max-content max-content}
 @media(max-width:700px){.header-actions{grid-template-columns:1fr 1fr}.header-actions .MuiButton-root{grid-column:1/-1;width:100%}}
 .analytics-card{display:grid;gap:24px}.analytics-controls{display:flex;gap:10px;align-items:flex-end}.analytics-controls label,.chart-title select{display:grid;gap:5px;font-size:.78rem;color:var(--m3-on-surface-variant);font-weight:700}.analytics-controls input,.analytics-controls select,.chart-title select{min-height:40px;padding:8px 12px}.analytics-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.analytics-summary strong{display:flex;flex-direction:column;gap:8px;padding:18px;border-radius:16px;background:var(--m3-surface-container-high);font-size:.83rem;color:var(--m3-on-surface-variant)}.analytics-summary strong span{font-size:1.2rem;color:var(--m3-on-surface);font-variant-numeric:tabular-nums}.analytics-chart-block{padding:20px;border-radius:18px;background:var(--m3-surface);border:1px solid var(--m3-outline-variant)}.chart-title{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.chart-title h3,.analytics-ranking h3{margin:0 0 4px}.chart-title span{color:var(--m3-on-surface-variant);font-size:.85rem}.chart-legend{display:flex;gap:14px}.chart-legend span{display:flex;align-items:center;gap:5px;font-weight:600}.chart-legend i,.ranking-track i{display:inline-block;width:9px;height:9px;border-radius:50%}.legend-income{background:#6c8f00}.legend-expense{background:#d9825b}.annual-chart{display:flex;min-height:260px}.chart-y-labels{width:92px;display:flex;flex-direction:column;justify-content:space-between;padding:0 10px 25px 0;text-align:right;font-size:.68rem;color:var(--m3-on-surface-variant)}.chart-plot{position:relative;flex:1;min-width:0}.chart-grid{position:absolute;inset:0 0 25px;display:flex;flex-direction:column;justify-content:space-between}.chart-grid i{border-top:1px dashed var(--m3-outline-variant)}.chart-bars{position:absolute;inset:0;display:flex;justify-content:space-around;align-items:stretch}.month-column{display:flex;flex:1;min-width:28px;max-width:80px;align-items:center;justify-content:flex-end;flex-direction:column;gap:8px;padding:0 4px;background:transparent;color:var(--m3-on-surface-variant);border-radius:10px}.month-column:hover,.month-column.selected{background:var(--m3-surface-container-high)}.bar-group{height:calc(100% - 25px);display:flex;align-items:flex-end;gap:3px;width:70%;max-width:28px}.bar-group i{width:50%;min-height:2px;border-radius:4px 4px 0 0}.bar-income{background:#8aa522}.bar-expense{background:#dc9876}.month-column small{text-transform:capitalize;font-size:.7rem}.trend-line{position:absolute;inset:0 0 25px;width:100%;height:calc(100% - 25px);pointer-events:none}.trend-line polyline{fill:none;stroke:#4f6358;stroke-width:1.5;vector-effect:non-scaling-stroke;stroke-dasharray:4 3}.analytics-detail{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}.analytics-rankings{display:grid;gap:16px}.analytics-ranking{padding:20px;border-radius:18px;background:var(--m3-surface);border:1px solid var(--m3-outline-variant)}.ranking-row{display:grid;grid-template-columns:minmax(90px,1fr) 1fr auto;align-items:center;gap:10px;margin-top:14px;font-size:.84rem}.ranking-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ranking-track{height:8px;border-radius:8px;background:var(--m3-surface-container-high);overflow:hidden}.ranking-track i{height:100%;background:#8aa522;border-radius:8px}.analytics-ranking:last-child .ranking-track i{background:#dc9876}.ranking-row strong{font-size:.78rem;white-space:nowrap}.detail-bars{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:34px;height:210px;padding:30px 20px 30px;border-bottom:1px solid var(--m3-outline-variant)}.detail-bar{position:relative;width:72px;min-height:3px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:flex-start;flex-direction:column;color:#fff}.detail-bar b{position:absolute;top:-25px;white-space:nowrap;font-size:.72rem;color:var(--m3-on-surface)}.detail-bar span{position:absolute;bottom:-26px;color:var(--m3-on-surface-variant);font-size:.78rem}.detail-trend{position:absolute;inset:35px 35px 30px;pointer-events:none}.detail-trend i{display:block;position:absolute;left:0;right:0;top:48%;border-top:2px dashed #4f6358;transform:rotate(-10deg)}.detail-trend span{position:absolute;right:0;top:calc(48% - 20px);font-size:.7rem;color:#4f6358}@media(max-width:850px){.analytics-detail{grid-template-columns:1fr}.analytics-summary{grid-template-columns:1fr}.analytics-controls{flex-wrap:wrap}.chart-title{flex-direction:column}.chart-legend{align-self:flex-start}}@media(max-width:560px){.analytics-controls{width:100%}.analytics-controls label{flex:1}.chart-y-labels{width:62px}.month-column{min-width:20px}.month-column small{font-size:.6rem}.bar-group{width:100%}.ranking-row{grid-template-columns:1fr auto}.ranking-track{grid-column:1/-1;grid-row:2}.detail-bars{gap:20px}}
-.analytics-shell{position:relative}.analytics-actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:10px}.comparison-bars{display:flex;align-items:end;justify-content:center;gap:16px;height:170px;padding:20px}.comparison-bars>div{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:end;width:64px;gap:7px}.comparison-bars i{display:block;width:38px;min-height:3px;border-radius:6px 6px 0 0}.comparison-bars span{font-size:.65rem;text-align:center;color:var(--m3-on-surface-variant)}@media print{.app-sidebar,.analytics-actions,.analytics-card>.section-head{display:none!important}.app-content{padding:20px!important}.analytics-card{display:block!important}.analytics-card:before{content:'FLUXeando - Analítica financiera';display:block;font-size:24px;font-weight:700;border-bottom:3px solid #8aa522;padding-bottom:12px;margin-bottom:20px}.analytics-card:after{content:'FLUXeando - Controlá tu dinero con claridad';display:block;border-top:1px solid #ddd;margin-top:25px;padding-top:10px;font-size:11px}}
+.analytics-shell{position:relative}.analytics-actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:10px}.analytics-export-option{display:flex;align-items:center;gap:7px;min-height:40px;padding:0 6px;color:var(--m3-on-surface-variant);font-size:.82rem;font-weight:700;cursor:pointer}.analytics-export-option input{width:18px;height:18px;min-height:0;padding:0;accent-color:var(--m3-primary);cursor:pointer}.comparison-bars{display:flex;align-items:end;justify-content:center;gap:16px;height:170px;padding:20px}.comparison-bars>div{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:end;width:64px;gap:7px}.comparison-bars i{display:block;width:38px;min-height:3px;border-radius:6px 6px 0 0}.comparison-bars span{font-size:.65rem;text-align:center;color:var(--m3-on-surface-variant)}@media print{.app-sidebar,.analytics-actions,.analytics-card>.section-head{display:none!important}.app-content{padding:20px!important}.analytics-card{display:block!important}.analytics-card:before{content:'FLUXeando - Analítica financiera';display:block;font-size:24px;font-weight:700;border-bottom:3px solid #8aa522;padding-bottom:12px;margin-bottom:20px}.analytics-card:after{content:'FLUXeando - Controlá tu dinero con claridad';display:block;border-top:1px solid #ddd;margin-top:25px;padding-top:10px;font-size:11px}}
 .analytics-actions{padding-right:14px;margin-top:20px}.analytics-actions .cashflow-switch{margin-right:8px}.negative-amount{color:#d85b5b!important;font-weight:800}.analytics-summary strong span{display:block;margin-top:4px;font-size:1.15rem}
 @media print{ @page{size:A4 portrait;margin:12mm} html,body{width:210mm;background:#fff!important}body{margin:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.app-content>header,.app-sidebar,.analytics-actions{display:none!important}.app-content{padding:0!important}.analytics-shell{width:100%!important}.analytics-card{width:100%!important;margin:0!important;padding:10mm!important;box-shadow:none!important;break-inside:avoid}.analytics-card:before{content:'FLUXeando - Analítica financiera';color:#202224}.analytics-chart-block,.analytics-ranking{break-inside:avoid;background:#fff!important}.analytics-detail{grid-template-columns:1fr 1fr}.analytics-summary{grid-template-columns:repeat(3,1fr)}.analytics-summary strong{background:#f2f2f2!important;color:#202224!important}.analytics-summary strong span{color:#202224!important}.analytics-card:after{color:#666}}
 .analytics-card{gap:36px}.analytics-summary{margin-bottom:4px}.analytics-detail{margin-top:4px;gap:28px}.analytics-chart-block{margin-bottom:4px}.analytics-rankings{gap:24px}
+.historical-month-chart{display:grid;gap:18px}.historical-chart{display:flex;min-height:250px}.historical-chart-plot{position:relative;flex:1;min-width:0;padding-bottom:28px}.historical-chart-plot .chart-grid{inset:0 0 28px}.historical-chart-plot svg{position:absolute;inset:0 0 28px;width:100%;height:calc(100% - 28px);overflow:visible}.historical-income-line,.historical-expense-line{fill:none;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}.historical-income-line{stroke:#6c8f00}.historical-expense-line{stroke:#d9825b}.historical-income-point{fill:#8aa522;stroke:var(--m3-surface);stroke-width:1.5;vector-effect:non-scaling-stroke}.historical-expense-point{fill:#dc9876;stroke:var(--m3-surface);stroke-width:1.5;vector-effect:non-scaling-stroke}.historical-income-point.current,.historical-expense-point.current{stroke:var(--m3-primary);stroke-width:3;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--m3-primary) 65%,transparent))}.historical-years{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:8px;color:var(--m3-on-surface-variant);font-size:.72rem;font-weight:700}.historical-years span{min-width:26px;text-align:center}.historical-years .current{color:var(--m3-primary);text-decoration:underline;text-underline-offset:4px}.historical-records{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.historical-records>div{position:relative;display:grid;gap:4px;padding:14px 16px;border-radius:14px;background:var(--m3-surface-container-high);border:1px solid var(--m3-outline-variant)}.historical-records>div:first-child{border-left:4px solid #8aa522}.historical-records>div:last-child{border-left:4px solid #dc9876}.historical-records span{font-size:.75rem;font-weight:800;color:var(--m3-on-surface-variant);text-transform:uppercase;letter-spacing:.04em}.historical-records strong{font-size:1.05rem;font-variant-numeric:tabular-nums}.historical-records small{color:var(--m3-on-surface-variant);font-size:.78rem}.historical-records .record-broken{background:color-mix(in srgb,var(--m3-primary-container) 55%,var(--m3-surface));box-shadow:0 5px 18px color-mix(in srgb,var(--m3-primary) 18%,transparent)}.historical-records .record-broken small{color:var(--m3-primary);font-weight:800}@media(max-width:560px){.historical-chart{min-height:210px}.historical-records{grid-template-columns:1fr}.historical-years{font-size:.62rem}.historical-years span:nth-child(even){visibility:hidden}}
+.record-comparison-chart{display:flex;min-height:260px}.record-comparison-bars{position:relative;display:flex;flex:1;justify-content:space-evenly;align-items:flex-end;gap:18px;padding:0 18px 6px;min-width:0}.record-comparison-bars .chart-grid{inset:0}.record-comparison-bar{z-index:1;display:grid;grid-template-rows:1fr auto auto auto;justify-items:center;align-items:end;gap:6px;width:min(22%,150px);height:100%;text-align:center}.record-comparison-bar i{display:block;width:min(68px,80%);min-height:3px;border-radius:9px 9px 0 0;background:#dc9876}.record-comparison-bar.income i{background:#8aa522}.record-comparison-bar strong{font-size:.8rem;font-variant-numeric:tabular-nums;white-space:nowrap}.record-comparison-bar span{font-size:.78rem;font-weight:800}.record-comparison-bar small{min-height:30px;color:var(--m3-on-surface-variant);font-size:.7rem;line-height:1.25}@media(max-width:560px){.record-comparison-chart{min-height:230px}.record-comparison-bars{gap:4px;padding:0}.record-comparison-bar{width:24%}.record-comparison-bar strong{font-size:.61rem}.record-comparison-bar span{font-size:.64rem}.record-comparison-bar small{font-size:.58rem}}
 /* El selector de roles debe conservar el ancho de los textos y el esquema visual claro. */
 .user-create-form select[name="role"]{min-width:220px;font-family:inherit;color:var(--m3-on-surface);color-scheme:light}
 .user-create-form .user-role-select{min-width:220px}
@@ -90,6 +92,14 @@ body[data-accent='graphite'] .sidebar-brand strong,body[data-accent='graphite'] 
   border-top:0;
 }
 .detail-trend strong{position:absolute;left:0;top:calc(48% + 18px);font-size:.82rem;color:#527a00}.detail-trend .negative-gap{color:#d85b5b}.detail-trend .positive-gap{color:#527a00}
+.detail-trend strong{z-index:1;left:50%;max-width:76%;padding:7px 10px;border:1px solid var(--m3-outline-variant);border-radius:10px;background:var(--m3-surface);box-shadow:0 2px 8px color-mix(in srgb,var(--m3-on-surface) 10%,transparent);text-align:center;transform:translateX(-50%);line-height:1.3}.detail-trend .negative-gap{border-color:color-mix(in srgb,#d85b5b 45%,var(--m3-outline-variant));background:color-mix(in srgb,#d85b5b 10%,var(--m3-surface));color:#ad3333}.detail-trend .positive-gap{border-color:color-mix(in srgb,#6c8f00 45%,var(--m3-outline-variant));background:color-mix(in srgb,#8aa522 10%,var(--m3-surface));color:#527a00}
+.detail-bar.income{background:#8aa522}.detail-bar.expense{background:#dc9876}.detail-bar b{z-index:2;padding:3px 6px;border-radius:6px;background:var(--m3-surface);font-weight:800}.detail-bar.income b{color:#527a00}.detail-bar.expense b{color:#ad4d2b}.detail-trend strong{max-width:88%;font-size:.76rem}
+.detail-trend strong{z-index:auto;left:0;max-width:48%;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;text-align:left;transform:none;font-size:.82rem;line-height:1.25}.detail-trend .negative-gap,.detail-trend .positive-gap{background:transparent}.detail-bar b{padding:0;border-radius:0;background:transparent;box-shadow:none}
+.detail-trend .detail-trend-copy{position:absolute;top:0;left:0;right:0;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.detail-trend .detail-trend-copy>strong,.detail-trend .detail-trend-copy>span{position:static;transform:none}.detail-trend .detail-trend-copy>strong{flex:0 1 48%;max-width:48%}.detail-trend .detail-trend-copy>span{flex:0 1 48%;margin-left:auto;text-align:right}
+.analytics-month-category-breakdown{display:grid;gap:18px;padding:22px;border:1px solid var(--m3-outline-variant);border-radius:18px;background:var(--m3-surface)}.analytics-month-category-breakdown h3{margin:0 0 4px}.analytics-month-category-breakdown>div>p{margin:0;color:var(--m3-on-surface-variant);font-size:.84rem}.monthly-category-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.monthly-category-columns>section{display:flex;flex-direction:column;justify-content:center;padding:16px;border-radius:0 14px 14px 0;background:var(--m3-surface-container-low);border-left:4px solid #8aa522}.monthly-category-columns>section.expense{border-left-color:#dc9876}.monthly-category-columns h4{margin:0 0 10px;font-size:.9rem}.monthly-category-columns article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 14px;padding:10px 0;border-top:1px solid var(--m3-outline-variant)}.monthly-category-columns article>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.monthly-category-columns article strong{font-size:.82rem;font-variant-numeric:tabular-nums}.monthly-category-columns article small{grid-column:1/-1;color:var(--m3-on-surface-variant);font-size:.75rem}@media(max-width:650px){.monthly-category-columns{grid-template-columns:1fr}}
+.month-detail .analytics-month-category-breakdown{margin-top:28px;padding:20px 0 0;border:0;border-top:1px solid var(--m3-outline-variant);border-radius:0;background:transparent}
+.month-detail .analytics-month-category-breakdown{margin-top:0;padding-top:24px;border-top:0}
+.monthly-category-columns>section{background:transparent}
 .daily-detail{grid-column:1/-1}.daily-chart{height:220px;display:flex;align-items:stretch;gap:3px;overflow-x:auto;padding:8px 4px 0;border-bottom:1px solid var(--m3-outline-variant)}.daily-column{display:flex;flex:1;min-width:18px;max-width:34px;align-items:center;justify-content:flex-end;flex-direction:column;gap:7px}.daily-bars{height:calc(100% - 22px);display:flex;align-items:flex-end;gap:2px;width:100%}.daily-bars i{width:50%;min-height:2px;border-radius:3px 3px 0 0}.daily-column small{font-size:.64rem;color:var(--m3-on-surface-variant)}
 .analytics-scope{margin:0;color:var(--m3-on-surface-variant);font-size:.9rem}.daily-column{border:0;background:transparent;color:inherit;cursor:pointer;border-radius:8px;padding:2px}.daily-column:hover,.daily-column:focus-visible{background:var(--m3-surface-container-high);outline:none}.daily-column:focus-visible{box-shadow:0 0 0 2px var(--m3-primary)}
 .daily-column:disabled{cursor:default;opacity:.55}.daily-column:disabled:hover{background:transparent}.analytics-modal-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.analytics-modal-summary span{display:grid;gap:4px;padding:12px;border-radius:12px;background:var(--m3-surface-container-high);font-size:.82rem;color:var(--m3-on-surface-variant)}.analytics-modal-summary strong{color:var(--m3-on-surface)}@media(max-width:560px){.analytics-modal-summary{grid-template-columns:1fr}}
@@ -97,6 +107,227 @@ body[data-accent='graphite'] .sidebar-brand strong,body[data-accent='graphite'] 
 .chart-legend .legend-net{width:18px;height:3px;border-radius:2px;background:#4f6358}.trend-line,.daily-trend-line{z-index:3}.trend-line polyline,.daily-trend-line polyline{stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .analytics-controls .MuiFormControl-root{min-width:150px}.analytics-controls .MuiOutlinedInput-root{min-height:40px}
 .daily-detail{position:relative}.daily-trend-line{position:absolute;left:24px;right:24px;top:78px;width:calc(100% - 48px);height:145px;pointer-events:none}.daily-trend-line polyline{fill:none;stroke:#4f6358;stroke-width:1.5;vector-effect:non-scaling-stroke;stroke-dasharray:4 3}
+.analytics-yearly-daily-report,.analytics-report-title,.analytics-print-page-header{display:none}
+/* PDF de Analítica: la tarjeta completa puede exceder una hoja A4. Se divide por
+   bloques de reporte para evitar páginas vacías o gráficos cortados. */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .app-shell,
+  .app-content,
+  .analytics-shell {
+    background: transparent !important;
+  }
+
+  .analytics-card {
+    display: block !important;
+    padding: 0 !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .analytics-card:after {
+    display: none !important;
+  }
+
+  .analytics-scope,
+  .analytics-summary,
+  .analytics-chart-block,
+  .analytics-ranking {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .analytics-summary {
+    margin: 0 0 10mm !important;
+  }
+
+  .daily-detail {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .analytics-detail {
+    display: block !important;
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .analytics-detail > .analytics-chart-block,
+  .analytics-rankings > * {
+    margin-bottom: 8mm;
+  }
+
+  .analytics-rankings {
+    display: block !important;
+  }
+
+  /* Al exportar desde Analítica, el PDF contiene únicamente el reporte. */
+  .app-content > :not(.analytics-shell) {
+    display: none !important;
+  }
+
+  .analytics-card .month-detail select {
+    display: none !important;
+  }
+
+  /* El reporte es neutro; los colores quedan reservados para los datos gráficos. */
+  .app-content .analytics-card,
+  .app-content .analytics-card .analytics-chart-block,
+  .app-content .analytics-card .analytics-ranking,
+  .app-content .analytics-card .analytics-summary strong {
+    background: transparent !important;
+  }
+
+  .analytics-card:before {
+    display: none !important;
+  }
+
+  .app-content .analytics-report-title {
+    display: block;
+    margin: 0 0 12mm !important;
+    padding: 10mm 0 8mm !important;
+    border-bottom: 2px solid var(--m3-primary);
+    color: #1d1c1d;
+    font-size: 48pt !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.055em;
+    line-height: 1 !important;
+  }
+
+  .analytics-report-title span:first-child {
+    color: var(--m3-primary) !important;
+  }
+
+  .analytics-report-title span:nth-child(2),
+  .analytics-report-title small {
+    color: #1d1c1d !important;
+  }
+
+  .analytics-report-title small {
+    font-size: .42em;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .analytics-card .month-column,
+  .analytics-card .daily-column {
+    background: transparent !important;
+  }
+
+  .analytics-card > .analytics-chart-block:not(.daily-detail) {
+    margin-top: 16mm !important;
+  }
+
+  .analytics-summary {
+    margin-bottom: 14mm !important;
+  }
+
+  /* Las áreas de trazado usan el blanco nativo del papel, sin fondo aplicado. */
+  .analytics-card .annual-chart,
+  .analytics-card .daily-chart,
+  .analytics-card .detail-bars,
+  .analytics-card .comparison-bars {
+    background: transparent !important;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .analytics-card .chart-grid i,
+  .analytics-card .daily-chart,
+  .analytics-card .detail-bars {
+    border-color: #cfc1b5 !important;
+  }
+
+  .analytics-card .trend-line polyline,
+  .analytics-card .daily-trend-line polyline {
+    stroke: #4f6358 !important;
+  }
+
+  /* El esquema oscuro no debe trasladar texto claro a fondos blancos del PDF. */
+  .analytics-card :is(h2, h3, p, span, strong, small, label) {
+    color: #4c4540 !important;
+  }
+
+  .analytics-card .chart-title span,
+  .analytics-card .chart-y-labels,
+  .analytics-card .month-column small,
+  .analytics-card .daily-column small {
+    color: #655d57 !important;
+  }
+
+  .analytics-card .analytics-chart-block,
+  .analytics-card .analytics-ranking {
+    border: 1.6px solid #b9ada4 !important;
+  }
+
+  .analytics-card .analytics-summary strong,
+  .analytics-card .historical-records > div {
+    border: 1.4px solid #c2b7af !important;
+  }
+
+  .analytics-card .historical-records > div:first-child {
+    border-left: 4px solid #8aa522 !important;
+  }
+
+  .analytics-card .historical-records > div:last-child {
+    border-left: 4px solid #dc9876 !important;
+  }
+
+  .analytics-shell.include-yearly-daily-report .analytics-yearly-daily-report {
+    display: block;
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .analytics-yearly-daily-report h3,
+  .analytics-yearly-daily-report p {
+    margin: 0;
+  }
+
+  .analytics-yearly-daily-report p {
+    margin: 2mm 0 5mm;
+    color: #655d57;
+    font-size: 9pt;
+  }
+
+  .analytics-yearly-daily-report table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent !important;
+    color: #4c4540 !important;
+    font-size: 8.5pt;
+  }
+
+  .analytics-yearly-daily-report thead {
+    display: table-header-group;
+  }
+
+  .analytics-yearly-daily-report tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .analytics-yearly-daily-report th,
+  .analytics-yearly-daily-report td {
+    padding: 2.2mm 2.5mm;
+    border-bottom: 1.2px solid #c9beb6;
+    color: #4c4540 !important;
+  }
+
+  .analytics-yearly-daily-report th {
+    background: transparent !important;
+    border-top: 2px solid #74675f;
+    font-size: 8pt;
+  }
+
+  .analytics-yearly-daily-report :is(th, td):not(:first-child) {
+    text-align: right;
+  }
+}
 /* Debug: separa el switch del texto para mantener el control legible. */
 .debug-logger-setting{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:18px!important;margin:0!important;width:max-content!important}
 .debug-logger-setting .MuiFormControlLabel-label{margin:0!important}
@@ -193,3 +424,155 @@ body[data-accent='graphite'] .sidebar-brand strong,body[data-accent='graphite'] 
 /* SQLite y MySQL comparten la misma estructura visual: campo, ayuda y pie de acciones. */
 .storage-path-row{align-items:stretch}.storage-path-field .MuiInputBase-root,.storage-path-field .MuiInputBase-input{cursor:pointer}.storage-path-field .MuiInputBase-input{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.storage-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;margin-top:8px;padding-top:24px;border-top:1px solid var(--m3-outline-variant)}.storage-actions .MuiButton-root:first-child:not(:last-child){justify-self:start}.storage-actions .MuiButton-root:last-child{grid-column:2;justify-self:end}.storage-actions .MuiButton-root:only-child{grid-column:2}@media(max-width:620px){.storage-actions{grid-template-columns:1fr}.storage-actions .MuiButton-root,.storage-actions .MuiButton-root:last-child,.storage-actions .MuiButton-root:only-child{grid-column:1;justify-self:stretch;width:100%}}
 .active-storage-location{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:16px;border:1px solid var(--m3-outline-variant);border-radius:16px;background:var(--m3-surface-container-low)}.active-storage-location .MuiInputBase-input{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.active-storage-location .MuiButton-root{white-space:nowrap}@media(max-width:620px){.active-storage-location{grid-template-columns:1fr}.active-storage-location .MuiButton-root{width:100%}}
+
+/* En Electron, el sidebar reduce el área útil antes de que actúen los cortes mobile.
+   Estos paneles conservan su caja y reorganizan su contenido antes de desbordar. */
+.app-content,.analytics-shell,.analytics-card,.analytics-card>*{min-width:0}
+@media(max-width:1100px){
+  .app-content{padding:28px 24px 44px}
+  .analytics-card>.section-head{align-items:stretch;flex-direction:column}
+  .analytics-controls{width:100%;flex-wrap:wrap}
+  .analytics-controls>label,.analytics-controls>.MuiFormControl-root{min-width:0;flex:1 1 170px}
+  .analytics-controls .MuiFormControl-root,.analytics-controls .MuiTextField-root{min-width:0;flex:1 1 170px}
+  .user-create-form{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}
+  .user-create-form .password-field{grid-column:1/-1}
+  .user-list .MuiListItem-root{padding:16px!important;align-items:flex-start}
+  .user-list .MuiListItem-secondaryAction{position:static!important;transform:none!important;width:auto!important;margin:12px 0 0 46px!important}
+  .user-list .MuiListItem-secondaryAction>.MuiStack-root{width:auto!important;justify-content:flex-start;flex-wrap:wrap}
+}
+@media(max-width:860px){
+  .analytics-summary{grid-template-columns:1fr}
+  .analytics-chart-block,.analytics-ranking{padding:16px}
+  .chart-title{flex-direction:column}
+  .chart-legend{flex-wrap:wrap}
+}
+@media(max-width:640px){
+  .app-content{padding:20px 16px 36px}
+  .analytics-controls>*{flex-basis:100%!important;width:100%}
+  .analytics-controls .MuiFormControl-root,.analytics-controls .MuiTextField-root{width:100%}
+  .user-list .MuiListItem-secondaryAction{margin-left:0!important}
+  .user-list .MuiListItem-secondaryAction .MuiButton-root{min-width:0}
+}
+
+/* Un mismo layout para web y Electron: sidebar persistente mientras haya ancho
+   y drawer accesible desde el encabezado cuando el contenido deja de entrar. */
+.app-shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
+.app-sidebar{position:sticky;z-index:4;top:0;display:flex!important;flex-direction:column;width:auto;height:100vh;padding:26px 16px;transform:none;box-shadow:none}
+.app-sidebar .sidebar-brand{display:flex}
+.app-sidebar .tabs{display:grid;overflow:visible;margin:32px 0}
+.app-sidebar .tabs button{flex:auto}
+.app-sidebar .sidebar-meta{display:block}
+.sidebar-toggle,.sidebar-scrim{display:none!important}
+.sidebar-toggle{border-radius:8px!important}
+.app-content>header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+@media(max-width:960px){
+  .app-shell{display:block}
+  .app-sidebar{position:fixed;z-index:1301;top:0;bottom:0;left:0;width:min(310px,86vw);height:100vh;transform:translateX(-100%);transition:transform .24s ease;box-shadow:14px 0 34px color-mix(in srgb,#000 24%,transparent)}
+  .app-sidebar.open{transform:translateX(0)}
+  .sidebar-scrim{display:block!important;position:fixed;z-index:1300;inset:0;width:100%;height:100%;padding:0;border:0;border-radius:0;background:color-mix(in srgb,#000 30%,transparent);cursor:default}
+  .sidebar-toggle{display:inline-flex!important;flex:0 0 auto;color:var(--m3-on-surface)!important}
+  .app-content>header{grid-template-columns:auto minmax(0,1fr) auto}
+}
+@media(max-width:760px){
+  .app-content>header{grid-template-columns:auto minmax(0,1fr)}
+  .header-actions{grid-column:1/-1;grid-row:2;margin-top:14px}
+}
+
+/* El formulario de usuarios tiene cuatro campos. La antigua quinta pista vacía
+   consumía ancho y hacía que el selector de Rol atravesara la tarjeta. */
+.user-create-form{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) minmax(0,1.4fr) minmax(150px,.8fr);width:100%}
+.user-create-form .user-role-select{width:100%;min-width:0}
+
+/* Impresión analítica: tres páginas compactas y membrete repetido. */
+@media print{
+  @page{size:A4 portrait;margin:36mm 12mm 12mm}
+  .analytics-card{gap:0!important}
+  .app-content .analytics-report-title{display:flex!important;position:relative;z-index:12;flex-wrap:wrap;align-content:center;justify-content:center;min-height:55mm;margin:-36mm 0 8mm!important;padding:0!important;border:0!important;background:#fff!important;color:#1d1c1d!important;font-size:76pt!important;font-weight:900!important;letter-spacing:-.055em;line-height:.9;text-align:center}
+  .analytics-report-brand{display:block!important;flex:0 0 100%;white-space:nowrap}
+  .analytics-report-brand b:first-child{color:var(--m3-primary)!important}
+  .analytics-report-brand b:last-child{color:#1d1c1d!important}
+  .analytics-report-title small{flex-basis:100%;margin-top:5mm;font-size:.34em!important;line-height:1.1!important;text-align:center}
+  .analytics-card:before{content:'FLUXeando · Analítica financiera';display:block!important;position:fixed;top:0;left:0;right:0;z-index:10;padding:0 0 4mm;border-bottom:1.5px solid var(--m3-primary);background:#fff!important;color:#1d1c1d!important;font-size:13pt!important;font-weight:900!important;letter-spacing:.01em}
+  .analytics-card:after{content:'Página ' counter(page) ' de ' counter(pages)!important;display:block!important;position:fixed;bottom:3mm;left:0;right:0;z-index:11;margin:0!important;padding:0!important;border:0!important;background:transparent!important;color:#665f5a!important;font-size:9pt!important;font-weight:700!important;letter-spacing:.06em;text-align:center}
+  .analytics-summary{margin-top:0!important;margin-bottom:4mm!important}
+  .analytics-card>.historical-month-chart,.analytics-card>.analytics-chart-block:not(.daily-detail){margin-top:0!important;margin-bottom:5mm!important;padding:10px!important}
+  .historical-chart,.record-comparison-chart{min-height:120px!important}
+  .annual-chart{min-height:150px!important}
+  .chart-title{margin-bottom:9px!important}
+  .analytics-card .annual-chart,.analytics-card .historical-chart,.analytics-card .record-comparison-chart{break-inside:avoid!important;page-break-inside:avoid!important}
+  .daily-detail{break-before:page!important;page-break-before:always!important;padding-top:8mm!important}
+  .analytics-detail{display:block!important;break-before:auto!important;page-break-before:auto!important}
+  .analytics-detail>.month-detail{margin:0!important}
+  .analytics-rankings{break-before:page!important;page-break-before:always!important;padding-top:8mm!important}
+  .analytics-rankings>*{break-inside:avoid!important;page-break-inside:avoid!important}
+  .analytics-shell.include-yearly-daily-report .analytics-yearly-daily-report{padding-top:0!important}
+}
+
+/* Vista de escritorio: el ancho útil de Electron es menor que el viewport por
+   el sidebar. El reporte conserva su jerarquía de exportación y se adapta al
+   contenedor disponible, en vez de esperar a un corte global de pantalla. */
+@media screen {
+  .analytics-shell {
+    container-type: inline-size;
+    width: min(1280px, 100%);
+    margin-inline: auto;
+  }
+
+  .analytics-card > .analytics-report-title {
+    display: none;
+  }
+
+  .analytics-card > .section-head {
+    padding: 0 2px;
+  }
+
+  .analytics-card > .analytics-scope {
+    padding: 12px 16px;
+    border-left: 3px solid var(--m3-primary);
+    background: var(--m3-surface-container-high);
+  }
+
+  .analytics-card :is(.analytics-chart-block, .analytics-ranking, .analytics-month-category-breakdown),
+  .analytics-card .analytics-summary strong {
+    border-radius: 8px;
+  }
+}
+
+@container (max-width: 980px) {
+  .analytics-card > .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .analytics-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .analytics-controls > label,
+  .analytics-controls > .MuiFormControl-root,
+  .analytics-controls > .MuiTextField-root {
+    min-width: 0;
+    flex: 1 1 170px;
+  }
+
+  .analytics-detail { grid-template-columns: 1fr; }
+}
+
+@container (max-width: 650px) {
+  .analytics-card > .analytics-report-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+  }
+
+  .analytics-card > .analytics-report-title small {
+    padding: 0;
+    border: 0;
+  }
+
+  .analytics-summary { grid-template-columns: 1fr; }
+  .analytics-controls > * { flex-basis: 100%; }
+  .analytics-detail { gap: 18px; }
+}

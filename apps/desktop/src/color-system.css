@@ -14,6 +14,7 @@
   --ui-focus-ring: color-mix(in srgb, var(--ui-accent) 46%, transparent);
   --ui-shadow: color-mix(in srgb, var(--ui-text) 14%, transparent);
 }
+
 html { font-size: var(--ui-font-size); }
 body, button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInputBase-root, .MuiMenuItem-root, .MuiChip-root, .MuiFormLabel-root { letter-spacing: var(--ui-letter-spacing) !important; }
 
@@ -152,7 +153,7 @@ body[data-accent='neon'][data-color-mode='light'] {
   --ui-sidebar: #D6D6D6;
   --ui-on-sidebar: #101010;
   --ui-menu-background: #D6D6D6;
-  --ui-selected: #101010;
+  --ui-selected: #EEFF22;
   --m3-surface-container-lowest: #FFFFFF;
 }
 
@@ -546,7 +547,7 @@ body[data-color-mode='dark'] .auth-shell,
 body[data-color-mode='dark'] .splash,
 body[data-color-mode='dark'] .login-transition { background: var(--ui-canvas) !important; }
 
-/* Aura ambiental de la pantalla de acceso: más presencia sin competir con el formulario. */
+/* Aura ambiental de la pantalla de acceso: toma el acento activo para conservar contraste en claro. */
 .auth-shell {
   position: relative;
   isolation: isolate;
@@ -561,9 +562,9 @@ body[data-color-mode='dark'] .login-transition { background: var(--ui-canvas) !i
   pointer-events: none;
   background: radial-gradient(
     ellipse at 50% 48%,
-    rgb(92 85 81 / 0.52) 0,
-    rgb(92 85 81 / 0.30) 30%,
-    transparent 68%
+    color-mix(in srgb, var(--ui-accent) 38%, transparent) 0,
+    color-mix(in srgb, var(--ui-accent) 18%, transparent) 34%,
+    transparent 70%
   );
   filter: blur(30px);
   animation: auth-aura-pulse 2.8s ease-in-out infinite;
@@ -596,6 +597,22 @@ body[data-color-mode='dark'] .auth-shell::before {
   outline: 0 !important;
   box-shadow: none !important;
   }
+
+/* Durante la carga solo se muestra el GIF, sin velo, tarjeta ni textos superpuestos. */
+.splash-animation-only,
+.login-transition-animation-only {
+  background: transparent !important;
+  animation: none !important;
+}
+.splash-animation-only .splash-mark,
+.login-transition-animation-only .login-transition-logo {
+  animation: none !important;
+}
+.splash-animation-only .splash-mark img,
+.login-transition-animation-only .login-transition-logo img {
+  animation: none !important;
+  opacity: 1 !important;
+}
 .login-transition p { color: var(--ui-text-muted) !important; }
 .login-progress { background: var(--ui-surface-highest) !important; }
 .login-progress i { background: var(--ui-accent) !important; }
@@ -806,6 +823,15 @@ button:focus-visible, [role='button']:focus-visible { outline: 2px solid var(--u
   border-radius: 0 !important;
 }
 .sidebar-logo img { border-radius: 0 !important; }
+
+/* La marca principal de la barra lateral necesita una presencia más clara. */
+.sidebar-brand { gap: 16px; padding-top: 24px; }
+.sidebar-logo { width: 196px; height: 142px; }
+.sidebar-logo img { width: 124px; height: 124px; }
+.sidebar-brand .fluxeando-wordmark { font-size: 1.8rem; }
+@media (max-width: 800px) {
+  .sidebar-brand { display: none; }
+}
 
 /* Switches compactos y alineados: el icono debe quedar dentro del thumb. */
 .header-actions .MuiSwitch-root,
@@ -1700,9 +1726,534 @@ body .MuiSwitch-root:has(.MuiSwitch-input:focus-visible) {
 .page-context-bar > p { margin: 0; color: var(--ui-text-muted); font-size: .9rem; }
 .page-context-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 40px; }
 .page-context-actions:empty::after { content: ''; display: block; width: 1px; height: 1px; }
-.app-content .analytics-actions { display: none; }
+.app-content .analytics-actions { display: flex; }
 .app-content > .card .section-head > .cashflow-switch { display: none; }
+
+/* Listas operativas: el mismo divisor sobrio que Auditoría, resuelto por la paleta activa. */
+.app-content .audit-list > li,
+.app-content .divided-list .MuiListItem-root,
+.app-content .request-list > li {
+  border-top: 1px solid color-mix(in srgb, var(--ui-border) 72%, transparent) !important;
+}
+.app-content .divided-list .MuiListItem-root,
+.app-content .request-list > li {
+  margin-top: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+.app-content .divided-list .MuiListItem-root.voided-row,
+.app-content .request-list > li.voided-row {
+  background: color-mix(in srgb, var(--ui-surface-high) 58%, transparent) !important;
+}
+.request-target {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ui-text);
+  cursor: help;
+  text-decoration: underline dotted var(--ui-border-strong);
+  text-underline-offset: 3px;
+}
+.request-target:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 3px; }
+.request-tooltip {
+  position: absolute;
+  z-index: 12;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: max-content;
+  max-width: min(360px, calc(100vw - 48px));
+  padding: 12px 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface-highest);
+  color: var(--ui-text);
+  box-shadow: 0 12px 28px var(--ui-shadow);
+  font-size: .82rem;
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: pre-line;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity .14s ease, transform .14s ease;
+}
+.request-target:hover .request-tooltip,
+.request-target:focus-visible .request-tooltip { opacity: 1; transform: translateY(0); }
+@media (max-width: 700px) {
+  .request-tooltip { position: fixed; left: 24px; right: 24px; bottom: 24px; width: auto; max-width: none; }
+}
+
+/* Perfil compacto compartido: reduce el alto visible sin cambiar el recorrido horizontal. */
+body .MuiSwitch-root,
+body .cashflow-switch.MuiSwitch-root,
+body .theme-switch .MuiSwitch-root,
+body .language-switch .MuiSwitch-root {
+  height: 24px !important;
+}
+body .MuiSwitch-root .MuiSwitch-switchBase,
+body .cashflow-switch .MuiSwitch-switchBase,
+body .theme-switch .MuiSwitch-switchBase,
+body .language-switch .MuiSwitch-switchBase {
+  height: 24px !important;
+}
+body .MuiSwitch-root .MuiSwitch-thumb,
+body .cashflow-switch .MuiSwitch-thumb,
+body .theme-switch .MuiSwitch-thumb,
+body .language-switch .MuiSwitch-thumb {
+  width: 16px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+}
+body .MuiSwitch-root .MuiSwitch-track,
+body .cashflow-switch .MuiSwitch-track {
+  border-radius: 12px !important;
+}
+body .theme-switch .MuiSwitch-input,
+body .language-switch .MuiSwitch-input {
+  height: 24px !important;
+}
+body .logger-switch .MuiSwitch-switchBase,
+body .logger-switch .MuiSwitch-switchBase.Mui-checked {
+  height: 24px !important;
+}
+body .logger-switch .MuiSwitch-thumb {
+  height: 16px !important;
+  border-radius: 8px !important;
+}
+/* En MUI v9 el glifo se monta directamente en el botón del switch. Su caja
+   visual es asimétrica, por eso se compensa sin alterar el recorrido. */
+body .theme-switch .MuiSwitch-switchBase > svg {
+  display: block !important;
+  transform: translateY(-2.5px) !important;
+}
+body .logger-switch .switch-state-code {
+  font-size: 10px !important;
+}
 @media (max-width: 700px) {
   .app-content > .page-context-bar { align-items: flex-start; flex-direction: column; gap: 12px; }
   .page-context-actions { width: 100%; justify-content: flex-start; }
+}
+
+/* Analítica: en ambos temas el borde define los bloques sin depender de un
+   fondo coloreado. */
+.app-shell .app-content .analytics-card .analytics-chart-block,
+.app-shell .app-content .analytics-card .analytics-ranking {
+  border: 1.5px solid var(--ui-border-strong) !important;
+}
+
+.app-shell .app-content .analytics-card .analytics-summary strong,
+.app-shell .app-content .analytics-card .historical-records > div {
+  border: 1.3px solid var(--ui-border) !important;
+}
+
+/* Exportación: sin fondos de interfaz; el blanco es el del propio papel. */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color-scheme: light !important;
+  }
+
+  body .app-shell,
+  body .app-shell .app-content,
+  body .app-shell .analytics-shell,
+  body .app-shell .app-content .analytics-card,
+  body .app-shell .app-content .analytics-card .analytics-summary strong,
+  body .app-shell .app-content .analytics-card .analytics-chart-block,
+  body .app-shell .app-content .analytics-card .analytics-ranking,
+  body .app-shell .analytics-yearly-daily-report table,
+  body .app-shell .analytics-yearly-daily-report th {
+    background: transparent !important;
+    background-image: none !important;
+  }
+
+  body .app-shell.dark,
+  body .app-shell.dark .app-content,
+  body .app-shell.dark .analytics-shell,
+  body .app-shell.dark .app-content .analytics-card,
+  body .app-shell.dark .app-content .analytics-card .analytics-summary strong,
+  body .app-shell.dark .app-content .analytics-card .analytics-chart-block,
+  body .app-shell.dark .app-content .analytics-card .analytics-ranking {
+    background: transparent !important;
+    background-image: none !important;
+  }
+
+  body .app-shell .app-content .analytics-card button.month-column,
+  body .app-shell .app-content .analytics-card button.daily-column {
+    background: transparent !important;
+    background-image: none !important;
+  }
+}
+
+/* Aislamiento final: ninguna superficie del tema oscuro se traslada al PDF.
+   No aplicar estas reglas a todo el documento: Chrome compone los SVG y los
+   saltos de página dentro de capas propias y un reset universal los vuelve
+   invisibles en la primera hoja. */
+@media print {
+  html,
+  body {
+    background-color: #fff !important;
+    color: #4c4540 !important;
+  }
+
+  /* El contenedor raíz no forma parte de analytics-card, pero en modo oscuro
+     conserva el canvas negro si queda transparente. Blanco equivale al papel
+     y evita que Chrome imprima esa capa. */
+  #root,
+  body .app-shell,
+  body .app-shell.dark,
+  body .app-shell .app-content,
+  body .app-shell.dark .app-content,
+  body .app-shell .analytics-shell,
+  body .app-shell.dark .analytics-shell,
+  body .app-shell .analytics-card,
+  body .app-shell.dark .analytics-card,
+  body .app-shell .analytics-chart-block,
+  body .app-shell.dark .analytics-chart-block,
+  body .app-shell .analytics-summary strong,
+  body .app-shell.dark .analytics-summary strong,
+  body .app-shell .historical-records > div,
+  body .app-shell.dark .historical-records > div,
+  body .app-shell .analytics-ranking,
+  body .app-shell.dark .analytics-ranking {
+    background: #fff !important;
+    background-image: none !important;
+  }
+
+  body .app-shell .app-content .analytics-card :is(h1, h2, h3, p, span, strong, small, b, label, th, td),
+  body .app-shell .analytics-yearly-daily-report :is(h3, p, th, td) {
+    color: #4c4540 !important;
+    -webkit-text-fill-color: #4c4540 !important;
+    opacity: 1 !important;
+  }
+
+  body .app-shell .app-content .analytics-card button.month-column,
+  body .app-shell .app-content .analytics-card button.daily-column,
+  body .app-shell.dark .app-content .analytics-card button.month-column,
+  body .app-shell.dark .app-content .analytics-card button.daily-column {
+    background: transparent !important;
+    background-image: none !important;
+    color: #4c4540 !important;
+    -webkit-text-fill-color: #4c4540 !important;
+  }
+
+  body .app-shell .app-content .analytics-card .bar-income,
+  body .app-shell .app-content .analytics-card .legend-income,
+  body .app-shell .app-content .analytics-card .ranking-track i {
+    background-color: #8aa522 !important;
+  }
+
+  body .app-shell .app-content .analytics-card .bar-expense,
+  body .app-shell .app-content .analytics-card .legend-expense,
+  body .app-shell .app-content .analytics-card .analytics-ranking:last-child .ranking-track i {
+    background-color: #dc9876 !important;
+  }
+
+  body .app-shell .app-content .analytics-card .legend-net {
+    background-color: #4f6358 !important;
+  }
+
+  body .app-shell .app-content .analytics-card .trend-line polyline,
+  body .app-shell .app-content .analytics-card .daily-trend-line polyline {
+    stroke: #4f6358 !important;
+  }
+
+  body .app-shell .app-content .analytics-report-title span:first-child {
+    color: var(--m3-primary) !important;
+  }
+
+  body .app-shell .app-content .analytics-report-title span:nth-child(2),
+  body .app-shell .app-content .analytics-report-title small {
+    color: #1d1c1d !important;
+  }
+
+  body .app-shell .app-content .analytics-report-title span:first-child {
+    color: var(--m3-primary) !important;
+    -webkit-text-fill-color: var(--m3-primary) !important;
+  }
+
+  body .app-shell .app-content .analytics-report-title span:nth-child(2),
+  body .app-shell .app-content .analytics-report-title small {
+    color: #1d1c1d !important;
+    -webkit-text-fill-color: #1d1c1d !important;
+  }
+}
+
+/* En anchos reducidos la navegación conserva la marca dentro del drawer. */
+@media (max-width: 960px) {
+  .app-sidebar.open .sidebar-brand { display: flex !important; }
+}
+
+/* Salida A4 canónica para web y Electron. Se fijan papel, tipografía, paleta y
+   densidad para que el reporte no dependa del tema ni del sistema operativo. */
+@media print {
+  /* Chrome compone el margen de página como una capa aparte. Al fragmentarse
+     el reporte esa capa deja una franja visible en el borde izquierdo. */
+  @page { size: A4 portrait; margin: 0; }
+
+  html, body, #root,
+  body .app-shell, body .app-shell.dark,
+  body .app-shell .app-content,
+  body .app-shell .analytics-shell,
+  body .app-shell .analytics-card {
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #26160c !important;
+    color-scheme: light !important;
+    font-family: "Open Sans", Arial, sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body .app-shell .analytics-card {
+    display: block !important;
+    font-size: 8.5pt !important;
+    /* El respiro queda dentro del reporte, no en el margen físico del PDF. */
+    padding: 12mm !important;
+    border: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* El export no hereda elevaciones, halos ni filtros decorativos del tema. */
+  body .app-shell .analytics-card *,
+  body .app-shell .analytics-card *::before,
+  body .app-shell .analytics-card *::after {
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
+  }
+
+  body .app-shell .app-content .analytics-report-title {
+    display: grid !important;
+    grid-template-columns: 36mm auto !important;
+    grid-template-rows: auto auto !important;
+    align-content: center !important;
+    justify-content: center !important;
+    column-gap: 8mm !important;
+    min-height: 68mm !important;
+    margin: 0 0 5mm !important;
+    padding: 0 0 5mm !important;
+    border: 0 !important;
+    border-bottom: 2px solid #b24e2e !important;
+    background: transparent !important;
+    text-align: left !important;
+  }
+
+  body .app-shell .app-content .analytics-report-logo {
+    display: block !important;
+    grid-row: 1 / 3 !important;
+    align-self: center !important;
+    width: 36mm !important;
+    height: 36mm !important;
+    object-fit: contain !important;
+  }
+
+  body .app-shell .app-content .analytics-report-brand {
+    display: flex !important;
+    align-self: end !important;
+    font-size: 42pt !important;
+    font-weight: 900 !important;
+    letter-spacing: -.06em !important;
+    line-height: .9 !important;
+    white-space: nowrap !important;
+  }
+
+  body .app-shell .app-content .analytics-report-brand b:first-child {
+    color: #b24e2e !important;
+    -webkit-text-fill-color: #b24e2e !important;
+  }
+
+  body .app-shell .app-content .analytics-report-brand b:last-child,
+  body .app-shell .app-content .analytics-report-title small {
+    color: #26160c !important;
+    -webkit-text-fill-color: #26160c !important;
+  }
+
+  body .app-shell .app-content .analytics-report-title small {
+    align-self: start !important;
+    margin: 2.5mm 0 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+  }
+
+  body .app-shell .analytics-card::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  body .app-shell .analytics-card::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  body .app-shell .analytics-summary {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 3mm !important;
+    margin: 0 0 4mm !important;
+  }
+
+  body .app-shell .analytics-summary strong,
+  body .app-shell .analytics-chart-block,
+  body .app-shell .analytics-ranking,
+  body .app-shell .historical-records > div,
+  body .app-shell .analytics-month-category-breakdown {
+    margin: 0 0 4mm !important;
+    padding: 3.5mm !important;
+    /* Los contornos de las tarjetas se fragmentaban entre páginas y Chrome
+       los rasterizaba como una banda gris en el margen izquierdo. */
+    border: 0 !important;
+    outline: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* El papel es el único fondo del informe. Las agrupaciones intermedias no
+     deben arrastrar capas, máscaras o degradados del dashboard interactivo. */
+  body .app-shell .analytics-card :is(
+    .analytics-detail,
+    .analytics-rankings,
+    .month-detail,
+    .detail-bars,
+    .detail-trend,
+    .monthly-category-columns,
+    .monthly-category-columns > section,
+    .chart-title,
+    .chart-legend,
+    .chart-plot,
+    .chart-grid
+  ) {
+    background: transparent !important;
+    background-image: none !important;
+    border-image: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+
+  body .app-shell .analytics-summary strong { padding: 3mm !important; }
+  body .app-shell .monthly-category-columns > section,
+  body .app-shell .analytics-yearly-daily-report :is(table, thead, tbody, tr, th, td) {
+    background: transparent !important;
+    background-image: none !important;
+  }
+  body .app-shell .ranking-track { background: #e7dfda !important; }
+  body .app-shell .chart-title { margin-bottom: 2.5mm !important; }
+  body .app-shell .chart-title h3,
+  body .app-shell .analytics-ranking h3 { font-size: 11pt !important; }
+  body .app-shell .chart-title span,
+  body .app-shell .chart-legend span { font-size: 7.5pt !important; }
+  body .app-shell .annual-chart { min-height: 38mm !important; height: 38mm !important; }
+  body .app-shell .record-comparison-chart { min-height: 34mm !important; height: 34mm !important; }
+  body .app-shell .daily-chart { min-height: 32mm !important; height: 32mm !important; }
+  body .app-shell .daily-trend-line { top: 17mm !important; height: 25mm !important; }
+  body .app-shell .detail-bars { height: 38mm !important; }
+  body .app-shell .comparison-bars { height: 34mm !important; }
+
+  /* En A4 ambos textos comparten una fila real y no pueden superponerse. */
+  body .app-shell .detail-trend-copy {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 3mm !important;
+  }
+
+  body .app-shell .detail-trend-copy > strong,
+  body .app-shell .detail-trend-copy > span {
+    position: static !important;
+    flex: 0 1 46% !important;
+    max-width: 46% !important;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
+  }
+
+  body .app-shell .detail-trend-copy > span {
+    margin-left: auto !important;
+    text-align: right !important;
+  }
+
+  body .app-shell .daily-detail,
+  body .app-shell .analytics-detail,
+  body .app-shell .analytics-rankings {
+    break-before: auto !important;
+    page-break-before: auto !important;
+    padding-top: 0 !important;
+  }
+
+  /* La portada tiene su composición propia. Desde el segundo pliego, el
+     membrete acompaña al contenido sin duplicar el título de la portada. */
+  body .app-shell .analytics-print-page-header {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 3mm !important;
+    margin: 0 0 4mm !important;
+    padding: 0 0 2.5mm !important;
+    border-bottom: 1px solid #b24e2e !important;
+    break-before: page !important;
+    page-break-before: always !important;
+    color: #26160c !important;
+  }
+
+  body .app-shell .analytics-print-page-header span {
+    display: inline-flex !important;
+    font-size: 16pt !important;
+    font-weight: 900 !important;
+    letter-spacing: -.06em !important;
+    line-height: 1 !important;
+  }
+
+  body .app-shell .analytics-print-page-header b:first-child { color: #b24e2e !important; }
+  body .app-shell .analytics-print-page-header b:last-child { color: #26160c !important; }
+  body .app-shell .analytics-print-page-header small {
+    color: #6c5a50 !important;
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase !important;
+  }
+
+  body .app-shell .analytics-print-page-header + .daily-detail {
+    break-before: auto !important;
+    page-break-before: auto !important;
+  }
+
+  body .app-shell .analytics-detail {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4mm !important;
+  }
+
+  body .app-shell :is(.analytics-scope, .analytics-summary, .analytics-chart-block,
+    .analytics-ranking, .analytics-month-category-breakdown, .analytics-yearly-daily-report table) {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* El detalle anual es una tabla paginable: el encabezado queda junto a las
+     primeras filas, en vez de dejar una página con sólo su título. */
+  body .app-shell .analytics-yearly-daily-report {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+  body .app-shell .analytics-yearly-daily-report table {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  body .app-shell :is(.bar-income, .legend-income, .ranking-track i) { background-color: #788f22 !important; }
+  body .app-shell :is(.bar-expense, .legend-expense) { background-color: #b24e2e !important; }
+  body .app-shell .analytics-ranking:last-child .ranking-track i { background-color: #b24e2e !important; }
+  body .app-shell .legend-net { background-color: #4f6358 !important; }
+  body .app-shell :is(.trend-line, .daily-trend-line) polyline { stroke: #4f6358 !important; }
 }
