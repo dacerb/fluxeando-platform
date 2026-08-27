@@ -8,6 +8,7 @@ import net from 'node:net';
 let backend: ChildProcess | undefined;
 let mainWindow: BrowserWindow | undefined;
 let apiUrl = process.env.CASHFLOW_API_URL ?? '';
+const appIconPath = () => app.isPackaged ? path.join(process.resourcesPath, 'app-icon.png') : path.join(__dirname, '../build/icon.png');
 type LocalStorageConfig = { mode: 'local'; dbPath: string };
 type MySQLStorageConfig = { mode: 'mysql'; host: string; port: string; database: string; username: string; encryptedPassword: string };
 type StorageConfig = LocalStorageConfig | MySQLStorageConfig;
@@ -142,7 +143,7 @@ async function apiDownload(_: Electron.IpcMainInvokeEvent, input: { path: string
 }
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); return; }
-  const win = new BrowserWindow({ width: 1200, height: 780, show: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
+  const win = new BrowserWindow({ width: 1200, height: 780, show: true, icon: appIconPath(), webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
   mainWindow = win;
   win.on('closed', () => { mainWindow = undefined; });
   win.webContents.on('did-fail-load', (_, code, description) => console.error('Renderer failed to load', { code, description }));
@@ -209,7 +210,7 @@ ipcMain.handle('cashflow:configure-mysql', async (_event, input: { host: string;
   catch (error) { storageConfig = previous; if (previous) { try { await startBackend(); } catch { /* Keep the previous configuration for the next launch. */ } } throw error; }
   return { mode: 'mysql', host: next.host, port: next.port, database: next.database, username: next.username };
 });
-app.whenReady().then(async () => { storageConfig = loadStorageConfig(); try { if (storageConfig) await startBackend(); } catch (error) { console.error('Unable to start local Go API', error); } createWindow(); });
+app.whenReady().then(async () => { app.dock?.setIcon(appIconPath()); storageConfig = loadStorageConfig(); try { if (storageConfig) await startBackend(); } catch (error) { console.error('Unable to start local Go API', error); } createWindow(); });
 app.on('before-quit', () => backend?.kill());
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => createWindow());

@@ -7,7 +7,9 @@
     "dev": "concurrently -k \"vite\" \"cd ../../services/cashflow-api && go run ./cmd/api\" \"wait-on http://127.0.0.1:5173 && tsc -p tsconfig.main.json && cross-env CASHFLOW_API_URL=http://127.0.0.1:8787 electron .\"",
     "web": "node ../../scripts/web-dev.mjs",
     "build": "vite build && tsc -p tsconfig.main.json",
-    "package": "sh ../../scripts/build-backend.sh && npm run build && electron-builder",
+    "package": "node ../../scripts/build-backend.mjs all && npm run build && electron-builder",
+    "package:mac": "node ../../scripts/build-backend.mjs mac-arm64 && npm run build && electron-builder --mac dmg --arm64",
+    "package:win": "node ../../scripts/build-backend.mjs win-x64 && npm run build && electron-builder --win nsis --x64",
     "lint": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -50,14 +52,21 @@
       {
         "from": "resources/bin/${os}-${arch}",
         "to": "cashflow-api"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "app-icon.png"
       }
     ],
     "mac": {
+      "icon": "build/icon.png",
       "target": [
         "dmg"
-      ]
+      ],
+      "category": "public.app-category.finance"
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         "nsis"
       ]
