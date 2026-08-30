@@ -1,0 +1,128 @@
+name: fluxeando
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Definí MYSQL_DATABASE en .env}
+      MYSQL_USER: ${MYSQL_USER:?Definí MYSQL_USER en .env}
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_app_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets:
+      - mysql_app_password
+      - mysql_root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping --silent --host=localhost --user=root --password=$$(cat /run/secrets/mysql_root_password)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    command: ["/app/cashflow-api", "-addr", "0.0.0.0:8787", "-mysql-host", "mysql", "-mysql-port", "3306", "-mysql-database", "${MYSQL_DATABASE}", "-mysql-username", "${MYSQL_USER}"]
+    environment:
+      CASHFLOW_MYSQL_PASSWORD_FILE: /run/secrets/mysql_app_password
+      CASHFLOW_TRUST_PROXY: "true"
+    secrets:
+      - mysql_app_password
+    depends_on:
+      mysql:
+        condition: service_healthy
+    expose:
+      - "8787"
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8787/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks: [private]
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Definí DOMAIN en .env}
+    depends_on:
+      backend:
+        condition: service_healthy
+      web:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/entrypoint.sh:/usr/local/bin/fluxeando-nginx:ro
+      - ./deploy/nginx/http.conf.template:/etc/nginx/templates/http.conf.template:ro
+      - ./deploy/nginx/https.conf.template:/etc/nginx/templates/https.conf.template:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/fluxeando-nginx"]
+    networks: [private]
+    security_opt:
+      - no-new-privileges:true
+
+  certbot:
+    image: certbot/certbot:v3.1.0
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Definí DOMAIN en .env}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL:?Definí CERTBOT_EMAIL en .env}
+    depends_on:
+      nginx:
+        condition: service_started
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      trap 'exit 0' TERM INT;
+      while :; do
+        certbot certonly --webroot --webroot-path /var/www/certbot
+        --email "$$CERTBOT_EMAIL" --agree-tos --no-eff-email --non-interactive
+        --keep-until-expiring -d "$$DOMAIN" || true;
+        sleep 12h & wait $$!;
+      done
+    networks: [private, outbound]
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private:
+    internal: true
+  outbound:
+
+volumes:
+  mysql_data:
+  letsencrypt:
+  certbot_webroot:
+
+secrets:
+  mysql_app_password:
+    file: ./deploy/secrets/mysql_app_password.txt
+  mysql_root_password:
+    file: ./deploy/secrets/mysql_root_password.txt

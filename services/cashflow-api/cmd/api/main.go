@@ -37,6 +37,14 @@ func main() {
 			os.Exit(1)
 		}
 		password := os.Getenv("CASHFLOW_MYSQL_PASSWORD")
+		if passwordFile := os.Getenv("CASHFLOW_MYSQL_PASSWORD_FILE"); passwordFile != "" {
+			contents, readErr := os.ReadFile(passwordFile)
+			if readErr != nil {
+				stdlog.Printf("MySQL password file could not be read: %v", readErr)
+				os.Exit(1)
+			}
+			password = strings.TrimSpace(string(contents))
+		}
 		if password == "" {
 			stdlog.Print("MySQL password is missing")
 			os.Exit(1)

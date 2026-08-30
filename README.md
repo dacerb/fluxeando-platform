@@ -75,6 +75,8 @@ GitHub Actions validará la coincidencia entre tag y versión, compilará en mac
 
 La guía de uso está en [docs/README.md](docs/README.md). Las capturas de cada pantalla se incorporarán al cerrar el diseño de esas secciones, para que la documentación refleje el producto final.
 
+Para alojar la interfaz web en un VPS Linux con MySQL, Nginx, HTTPS de Let's Encrypt y MCP remoto, consultá la [guía de despliegue autoalojado](docs/despliegue-vps.md).
+
 ## Seguridad
 
 Las contraseñas y códigos de recuperación se almacenan con hash Argon2id. Las exportaciones CSV excluyen credenciales y secretos. Conservá el código de recuperación de un solo uso en un gestor de contraseñas.

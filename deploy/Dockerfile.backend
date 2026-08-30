@@ -1,0 +1,15 @@
+FROM golang:1.24-alpine AS build
+WORKDIR /src
+
+COPY services/cashflow-api/go.mod services/cashflow-api/go.sum ./
+RUN go mod download
+COPY services/cashflow-api/ ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/cashflow-api ./cmd/api
+
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates wget && addgroup -S cashflow && adduser -S -G cashflow cashflow
+WORKDIR /app
+COPY --from=build /out/cashflow-api /app/cashflow-api
+USER cashflow
+EXPOSE 8787
+ENTRYPOINT ["/app/cashflow-api"]

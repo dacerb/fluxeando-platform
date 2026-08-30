@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/cashflow/desktop/api/internal/domain"
@@ -52,7 +53,7 @@ func (s *Server) mcpHTTP() http.Handler {
 			http.Error(w, "local MCP only", http.StatusForbidden)
 			return
 		}
-		identity, err := s.mcpIdentity(r.Context(), r.Header.Get("Authorization"), r.RemoteAddr, r.UserAgent())
+		identity, err := s.mcpIdentity(r.Context(), r.Header.Get("Authorization"), mcpClientAddress(r), r.UserAgent())
 		if err != nil {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "authentication required", http.StatusUnauthorized)
@@ -60,6 +61,14 @@ func (s *Server) mcpHTTP() http.Handler {
 		}
 		s.mcpHandler.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), mcpIdentityKey{}, identity)))
 	})
+}
+func mcpClientAddress(request *http.Request) string {
+	if os.Getenv("CASHFLOW_TRUST_PROXY") == "true" {
+		if forwarded := strings.TrimSpace(strings.Split(request.Header.Get("X-Forwarded-For"), ",")[0]); forwarded != "" {
+			return forwarded
+		}
+	}
+	return request.RemoteAddr
 }
 func (s *Server) mcpIdentity(ctx context.Context, authorization, remoteAddress, userAgent string) (mcpIdentity, error) {
 	secret := strings.TrimSpace(strings.TrimPrefix(authorization, "Bearer "))

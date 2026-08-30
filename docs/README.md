@@ -6,6 +6,7 @@ Esta documentación acompaña a la aplicación de escritorio. Se actualizará ju
 
 - [Instalación y primeros pasos](instalacion.md)
 - [Guía de uso](uso/README.md)
+- [Despliegue web autoalojado en VPS](despliegue-vps.md)
 
 ## Capturas
 

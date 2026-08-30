@@ -10,3 +10,7 @@ coverage/
 
 *-template.csv
 apps/desktop/resources/bin/
+
+# Secretos del despliegue autoalojado.
+deploy/.env
+deploy/secrets/*.txt
