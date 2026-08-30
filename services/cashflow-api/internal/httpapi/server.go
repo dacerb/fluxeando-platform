@@ -78,6 +78,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/storage/import", s.importStorage)
 	m.HandleFunc("POST /v1/storage/validate", s.validateStorage)
 	m.HandleFunc("POST /v1/storage/new", s.newStorage)
+	m.HandleFunc("POST /v1/storage/mysql", s.configureMySQL)
 	m.HandleFunc("POST /v1/auth/login", s.login)
 	m.HandleFunc("GET /v1/auth/session", s.session)
 	m.HandleFunc("POST /v1/auth/logout", s.logout)
@@ -147,7 +148,7 @@ func (writer *statusWriter) Write(body []byte) (int, error) {
 }
 
 func responseForLog(path string, body []byte) string {
-	if len(body) == 0 || path == "/v1/auth/login" || path == "/v1/setup/initialize" {
+	if len(body) == 0 || path == "/v1/auth/login" || path == "/v1/setup/initialize" || path == "/v1/auth/recover" {
 		return "[redacted]"
 	}
 	return string(body)
@@ -156,7 +157,7 @@ func responseForLog(path string, body []byte) string {
 func correlation(ctx context.Context) string { v, _ := ctx.Value(correlationKey{}).(string); return v }
 func (s *Server) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/storage/import" && r.URL.Path != "/v1/storage/validate" && r.URL.Path != "/v1/storage/new" {
+		if r.URL.Path != "/v1/storage/import" && r.URL.Path != "/v1/storage/validate" && r.URL.Path != "/v1/storage/new" && r.URL.Path != "/v1/storage/mysql" {
 			s.storageMu.RLock()
 			defer s.storageMu.RUnlock()
 		}
@@ -284,6 +285,52 @@ func (s *Server) newStorage(w http.ResponseWriter, r *http.Request) {
 	write(w, http.StatusOK, map[string]string{"storage": "new_sqlite"})
 }
 
+type mysqlStorageRequest struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Database string `json:"database"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// configureMySQL opens and migrates the candidate connection before it replaces
+// the active repository. This keeps the current storage available on failure.
+func (s *Server) configureMySQL(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("CASHFLOW_ALLOW_STORAGE_CONFIGURATION") != "true" {
+		write(w, http.StatusForbidden, map[string]string{"error": "storage configuration is disabled on this server"})
+		return
+	}
+	var request mysqlStorageRequest
+	if err := jsonBody(r, &request); err != nil {
+		fail(w, fmt.Errorf("invalid MySQL configuration"))
+		return
+	}
+	request.Host = strings.TrimSpace(request.Host)
+	request.Port = strings.TrimSpace(request.Port)
+	request.Database = strings.TrimSpace(request.Database)
+	request.Username = strings.TrimSpace(request.Username)
+	if request.Host == "" || request.Port == "" || request.Database == "" || request.Username == "" || request.Password == "" {
+		fail(w, fmt.Errorf("host, port, database, username and password are required"))
+		return
+	}
+	if _, err := strconv.ParseUint(request.Port, 10, 16); err != nil {
+		fail(w, fmt.Errorf("invalid MySQL port"))
+		return
+	}
+	repo, err := sqlite.OpenMySQL(request.Host, request.Port, request.Database, request.Username, request.Password)
+	if err != nil {
+		// Never return or log credentials. The previous repository remains active.
+		fail(w, fmt.Errorf("could not connect to MySQL; verify the host, port, credentials and that the server is running"))
+		return
+	}
+	s.storageMu.Lock()
+	previous := s.App.Repo
+	s.App = application.New(repo)
+	_ = previous.Close()
+	s.storageMu.Unlock()
+	write(w, http.StatusOK, map[string]string{"storage": "mysql"})
+}
+
 func jsonBody(r *http.Request, v any) error {
 	defer r.Body.Close()
 	return json.NewDecoder(r.Body).Decode(v)
@@ -301,7 +348,17 @@ func fail(w http.ResponseWriter, e error) {
 	write(w, code, map[string]string{"error": e.Error()})
 }
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	write(w, 200, map[string]string{"status": "ok"})
+	storage := "sqlite"
+	if s.App.Repo.IsMySQL() {
+		storage = "mysql"
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	if err := s.App.Repo.Ping(ctx); err != nil {
+		write(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable", "storage": storage, "error": "storage connection is unavailable"})
+		return
+	}
+	write(w, http.StatusOK, map[string]string{"status": "ok", "storage": storage})
 }
 func (s *Server) logs(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)
@@ -391,7 +448,16 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		fail(w, e)
 		return
 	}
-	write(w, 200, map[string]any{"token": t, "user": u})
+	recoveryCode, e := s.App.EnsureRecoveryCode(r.Context(), u, correlation(r.Context()))
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	response := map[string]any{"token": t, "user": u}
+	if recoveryCode != "" {
+		response["recovery_code"] = recoveryCode
+	}
+	write(w, 200, response)
 }
 func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 	if u, ok := s.actor(w, r); ok {
@@ -411,11 +477,12 @@ func (s *Server) recover(w http.ResponseWriter, r *http.Request) {
 		fail(w, e)
 		return
 	}
-	if e := s.App.Recover(r.Context(), b.Email, b.RecoveryCode, b.NewPassword, correlation(r.Context())); e != nil {
+	code, e := s.App.Recover(r.Context(), b.Email, b.RecoveryCode, b.NewPassword, correlation(r.Context()))
+	if e != nil {
 		fail(w, e)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	write(w, http.StatusOK, map[string]string{"recovery_code": code})
 }
 func token(r *http.Request) string {
 	return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")

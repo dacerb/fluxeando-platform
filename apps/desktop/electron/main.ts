@@ -13,6 +13,7 @@ type LocalStorageConfig = { mode: 'local'; dbPath: string };
 type MySQLStorageConfig = { mode: 'mysql'; host: string; port: string; database: string; username: string; encryptedPassword: string };
 type StorageConfig = LocalStorageConfig | MySQLStorageConfig;
 let storageConfig: StorageConfig | undefined;
+let backendError = '';
 const defaultDatabasePath = () => path.join(app.getPath('userData'), 'cashflow.db');
 const newDefaultDatabasePath = () => {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -72,6 +73,7 @@ async function waitForApi() {
   throw new Error('Local CashFlow API did not become ready');
 }
 async function startBackend() {
+  backendError = '';
   if (process.env.CASHFLOW_API_URL) { apiUrl = process.env.CASHFLOW_API_URL; await waitForApi(); return; }
   if (!storageConfig) throw new Error('Storage must be configured before starting the local API');
   const port = await findFreePort();
@@ -88,8 +90,8 @@ async function startBackend() {
     args.push('-db', storageConfig.dbPath);
   }
   backend = spawn(executable, args, { stdio: 'ignore', env: environment });
-  backend.on('error', error => console.error('Unable to start local Go API', error));
-  await waitForApi();
+  backend.on('error', error => { backendError = error.message; console.error('Unable to start local Go API', error); });
+  try { await waitForApi(); } catch (error) { backendError ||= error instanceof Error ? error.message : 'The local API did not start'; throw error; }
 }
 async function stopBackend() {
   const running = backend;
@@ -158,7 +160,7 @@ ipcMain.handle('cashflow:remembered-session:get', () => loadRememberedSession())
 ipcMain.handle('cashflow:remembered-session:set', (_event, token: string) => { if (typeof token !== 'string' || !token) throw new Error('Invalid remembered session'); saveRememberedSession(token); });
 ipcMain.handle('cashflow:remembered-session:clear', () => clearRememberedSession());
 ipcMain.handle('cashflow:runtime', () => {
-  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
+  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), backendReady: Boolean(apiUrl) && !backendError, backendError: backendError || undefined, storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
 });
 ipcMain.handle('cashflow:reveal-database', () => {
   if (storageConfig?.mode !== 'local' || !storageConfig.dbPath) throw new Error('A local database is not configured');
@@ -182,11 +184,12 @@ ipcMain.handle('cashflow:choose-new-database', async (_event, input: { dbPath?: 
 ipcMain.handle('cashflow:configure-storage', async (_event, input: LocalStorageConfig) => {
   if (input.mode !== 'local' || !input.dbPath || !path.isAbsolute(input.dbPath)) throw new Error('Invalid storage configuration');
   await validateDatabase(input.dbPath);
-  storageConfig = { mode: input.mode, dbPath: input.dbPath };
-  saveStorageConfig(storageConfig);
-  await stopBackend();
-  await startBackend();
-  return { ...storageConfig };
+  const previous = storageConfig;
+  const next: LocalStorageConfig = { mode: input.mode, dbPath: input.dbPath };
+  storageConfig = next;
+  try { await stopBackend(); await startBackend(); saveStorageConfig(next); }
+  catch (error) { storageConfig = previous; if (previous) { try { await startBackend(); } catch { /* Recovery screen remains available. */ } } throw error; }
+  return next;
 });
 ipcMain.handle('cashflow:create-storage', async (_event, input: { mode: StorageConfig['mode']; dbPath?: string }) => {
   const dbPath = input.dbPath || newDefaultDatabasePath();

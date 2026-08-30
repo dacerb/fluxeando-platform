@@ -17,11 +17,11 @@ func TestOnboardingLoginTransactionAndAudit(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	code, e := app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "correlation-test")
+	code, e := app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "correlation-test")
 	if e != nil || code == "" {
 		t.Fatalf("initialize: %v", e)
 	}
-	token, admin, e := app.Login(ctx, "admin@example.com", "a secure password")
+	token, admin, e := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if e != nil || token == "" {
 		t.Fatalf("login: %v", e)
 	}
@@ -48,6 +48,26 @@ func TestOnboardingLoginTransactionAndAudit(t *testing.T) {
 	}
 }
 
+func TestInitialAdministratorValidatesEmailNameAndAlphanumericPassword(t *testing.T) {
+	tests := []struct{ email, name, password string }{
+		{"not-an-email", "Admin", "SecureAdmin123"},
+		{"admin@example.com", "", "SecureAdmin123"},
+		{"admin@example.com", "Admin", "short123"},
+		{"admin@example.com", "Admin", "Secure\nAdmin123"},
+		{"admin@example.com", "Admin", "Secure Admin123"},
+	}
+	for _, test := range tests {
+		repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = application.New(repo).Initialize(context.Background(), test.email, test.name, test.password, "validation"); err == nil {
+			t.Fatalf("expected invalid initial administrator to fail: %#v", test)
+		}
+		_ = repo.Close()
+	}
+}
+
 func TestRememberedSessionSurvivesServiceRestartAndCanBeRevoked(t *testing.T) {
 	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
 	if err != nil {
@@ -56,10 +76,10 @@ func TestRememberedSessionSurvivesServiceRestartAndCanBeRevoked(t *testing.T) {
 	defer repo.Close()
 	ctx := context.Background()
 	first := application.New(repo)
-	if _, err = first.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "c"); err != nil {
+	if _, err = first.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "c"); err != nil {
 		t.Fatal(err)
 	}
-	token, user, err := first.LoginRemembered(ctx, "admin@example.com", "a secure password")
+	token, user, err := first.LoginRemembered(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil || token == "" || user.ID == "" {
 		t.Fatalf("remembered login: %v", err)
 	}
@@ -81,18 +101,56 @@ func TestRecoveryCodeCanOnlyBeUsedOnce(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	code, e := app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "c")
+	code, e := app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "c")
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = app.Recover(ctx, "admin@example.com", code, "another secure password", "c"); e != nil {
+	nextCode, e := app.Recover(ctx, "admin@example.com", code, "AnotherAdmin123", "c")
+	if e != nil || nextCode == "" || nextCode == code {
 		t.Fatal(e)
 	}
-	if _, _, e = app.Login(ctx, "admin@example.com", "another secure password"); e != nil {
+	if _, _, e = app.Login(ctx, "admin@example.com", "AnotherAdmin123"); e != nil {
 		t.Fatal(e)
 	}
-	if e = app.Recover(ctx, "admin@example.com", code, "third secure password", "c"); e == nil {
+	if _, e = app.Recover(ctx, "admin@example.com", code, "ThirdAdmin123", "c"); e == nil {
 		t.Fatal("recovery code should be consumed")
+	}
+	if _, e = app.Recover(ctx, "admin@example.com", nextCode, "ThirdAdmin123", "c"); e != nil {
+		t.Fatalf("rotated recovery code should work: %v", e)
+	}
+}
+
+func TestAdministratorWithoutRecoveryCodeReceivesOneOnLogin(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	app := application.New(repo)
+	ctx := context.Background()
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "login-recovery"); err != nil {
+		t.Fatal(err)
+	}
+	_, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, passwordHash, _, err := repo.UserCredentials(ctx, admin.Email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = repo.UpdatePassword(ctx, admin.ID, passwordHash, false); err != nil {
+		t.Fatal(err)
+	}
+	code, err := app.EnsureRecoveryCode(ctx, admin, "login-recovery")
+	if err != nil || code == "" {
+		t.Fatalf("recovery code was not issued: %v", err)
+	}
+	if duplicate, err := app.EnsureRecoveryCode(ctx, admin, "login-recovery"); err != nil || duplicate != "" {
+		t.Fatalf("recovery code should not be reissued while active: %q, %v", duplicate, err)
+	}
+	if _, err = app.Recover(ctx, admin.Email, code, "AnotherAdmin123", "login-recovery"); err != nil {
+		t.Fatalf("issued recovery code should work: %v", err)
 	}
 }
 
@@ -104,11 +162,11 @@ func TestAccountsAndCategoriesArePersistedAndRoleProtected(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	_, e = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "correlation-test")
+	_, e = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "correlation-test")
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, admin, e := app.Login(ctx, "admin@example.com", "a secure password")
+	_, admin, e := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -140,10 +198,10 @@ func TestAccountAndCategoryLifecycleIsAudited(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, e = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "lifecycle"); e != nil {
+	if _, e = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "lifecycle"); e != nil {
 		t.Fatal(e)
 	}
-	_, admin, e := app.Login(ctx, "admin@example.com", "a secure password")
+	_, admin, e := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -198,10 +256,10 @@ func TestManagerAndOperatorVoidRequestPermissions(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, e = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "roles"); e != nil {
+	if _, e = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "roles"); e != nil {
 		t.Fatal(e)
 	}
-	_, admin, e := app.Login(ctx, "admin@example.com", "a secure password")
+	_, admin, e := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -270,10 +328,10 @@ func TestAdministratorCanDeactivateAndDeleteUsers(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "users"); err != nil {
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "users"); err != nil {
 		t.Fatal(err)
 	}
-	_, admin, err := app.Login(ctx, "admin@example.com", "a secure password")
+	_, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,10 +369,10 @@ func TestImportTransactionsCreatesMissingCategories(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "import"); err != nil {
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "import"); err != nil {
 		t.Fatal(err)
 	}
-	_, admin, err := app.Login(ctx, "admin@example.com", "a secure password")
+	_, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/cashflow/desktop/api/internal/infrastructure/sqlite"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
+	"net/mail"
 	"strings"
 	"sync"
 	"time"
@@ -74,6 +75,25 @@ func validatePassword(v string) error {
 	}
 	return nil
 }
+func validateInitialAdministrator(email, name, password string) error {
+	email = strings.TrimSpace(email)
+	address, err := mail.ParseAddress(email)
+	if err != nil || address.Address != email || !strings.Contains(address.Address, "@") {
+		return errors.New("a valid email address is required")
+	}
+	if strings.TrimSpace(name) == "" {
+		return errors.New("display name is required")
+	}
+	if len(password) < 12 {
+		return errors.New("password must contain at least 12 characters")
+	}
+	for _, character := range password {
+		if character == ' ' || character == '\t' || character == '\n' || character == '\r' {
+			return errors.New("password must not contain spaces")
+		}
+	}
+	return nil
+}
 func (s *Service) Initialized(ctx context.Context) (bool, error) { return s.Repo.Initialized(ctx) }
 func (s *Service) RecordPreferenceChange(ctx context.Context, actor domain.User, kind string, before, after map[string]string, correlation string) error {
 	if kind != "appearance" && kind != "language" {
@@ -117,10 +137,7 @@ func (s *Service) Initialize(ctx context.Context, email, name, password, correla
 	if ok {
 		return "", errors.New("application is already initialized")
 	}
-	if !strings.Contains(email, "@") || strings.TrimSpace(name) == "" {
-		return "", errors.New("email and display name are required")
-	}
-	if e = validatePassword(password); e != nil {
+	if e = validateInitialAdministrator(email, name, password); e != nil {
 		return "", e
 	}
 	ph, e := hash(password)
@@ -197,22 +214,60 @@ func (s *Service) Logout(token string) {
 	digest := sha256.Sum256([]byte(token))
 	s.Repo.DeleteRememberedSession(context.Background(), base64.RawURLEncoding.EncodeToString(digest[:]))
 }
-func (s *Service) Recover(ctx context.Context, email, code, newPassword, correlation string) error {
+func (s *Service) EnsureRecoveryCode(ctx context.Context, user domain.User, correlation string) (string, error) {
+	if user.Role != string(domain.RoleAdministrator) {
+		return "", nil
+	}
+	_, _, recoveryHash, err := s.Repo.UserCredentials(ctx, user.Email)
+	if err != nil {
+		return "", err
+	}
+	if recoveryHash != "" {
+		return "", nil
+	}
+	code, err := recoveryCode()
+	if err != nil {
+		return "", err
+	}
+	hash, err := hash(code)
+	if err != nil {
+		return "", err
+	}
+	if err = s.Repo.UpdateRecoveryCode(ctx, user.ID, hash); err != nil {
+		return "", err
+	}
+	if err = s.Repo.Audit(ctx, uuid.NewString(), user.ID, "recovery_code_issued", "user", user.ID, correlation, nil, nil); err != nil {
+		return "", err
+	}
+	return code, nil
+}
+func (s *Service) Recover(ctx context.Context, email, code, newPassword, correlation string) (string, error) {
 	if e := validatePassword(newPassword); e != nil {
-		return e
+		return "", e
 	}
 	u, _, rh, e := s.Repo.UserCredentials(ctx, strings.ToLower(email))
 	if e != nil || rh == "" || !verify(code, rh) {
-		return errors.New("invalid recovery credentials")
+		return "", errors.New("invalid recovery credentials")
 	}
 	h, e := hash(newPassword)
 	if e != nil {
-		return e
+		return "", e
 	}
-	if e = s.Repo.UpdatePassword(ctx, u.ID, h, false); e != nil {
-		return e
+	nextCode, e := recoveryCode()
+	if e != nil {
+		return "", e
 	}
-	return s.Repo.Audit(ctx, uuid.NewString(), u.ID, "password_recovered", "user", u.ID, correlation, nil, map[string]string{"email": u.Email})
+	nextRecoveryHash, e := hash(nextCode)
+	if e != nil {
+		return "", e
+	}
+	if e = s.Repo.UpdatePasswordWithRecovery(ctx, u.ID, h, nextRecoveryHash); e != nil {
+		return "", e
+	}
+	if e = s.Repo.Audit(ctx, uuid.NewString(), u.ID, "password_recovered", "user", u.ID, correlation, nil, map[string]string{"email": u.Email}); e != nil {
+		return "", e
+	}
+	return nextCode, nil
 }
 func (s *Service) Require(u domain.User, roles ...domain.Role) error {
 	for _, r := range roles {

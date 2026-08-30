@@ -23,10 +23,10 @@ func TestDeactivateCategoryRoute(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "route-test"); err != nil {
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "route-test"); err != nil {
 		t.Fatal(err)
 	}
-	token, _, err := app.Login(ctx, "admin@example.com", "a secure password")
+	token, _, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,10 +67,10 @@ func TestImportTransactionsAndTemplateRoute(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "import-test"); err != nil {
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "import-test"); err != nil {
 		t.Fatal(err)
 	}
-	token, admin, err := app.Login(ctx, "admin@example.com", "a secure password")
+	token, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,10 +123,10 @@ func TestActivateUserRoute(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "activate-route"); err != nil {
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "activate-route"); err != nil {
 		t.Fatal(err)
 	}
-	token, admin, err := app.Login(ctx, "admin@example.com", "a secure password")
+	token, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,10 +166,10 @@ func TestLogsRouteReturnsRecentRequestsForAdministrator(t *testing.T) {
 	defer repo.Close()
 	app := application.New(repo)
 	ctx := context.Background()
-	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "a secure password", "logs-route"); err != nil {
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "logs-route"); err != nil {
 		t.Fatal(err)
 	}
-	token, _, err := app.Login(ctx, "admin@example.com", "a secure password")
+	token, _, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
 	if err != nil {
 		t.Fatal(err)
 	}

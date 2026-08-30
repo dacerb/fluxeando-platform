@@ -81,7 +81,9 @@ func Open(path string) (*Repository, error) {
 	}
 	return r, nil
 }
-func (r *Repository) Close() error { return r.DB.Close() }
+func (r *Repository) Close() error                   { return r.DB.Close() }
+func (r *Repository) Ping(ctx context.Context) error { return r.DB.PingContext(ctx) }
+func (r *Repository) IsMySQL() bool                  { return r.mysql }
 func (r *Repository) Migrate(ctx context.Context) error {
 	_, err := r.DB.ExecContext(ctx, `
  CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
@@ -230,6 +232,14 @@ func (r *Repository) UserCredentials(ctx context.Context, email string) (domain.
 }
 func (r *Repository) UpdatePassword(ctx context.Context, id, hash string, mustChange bool) error {
 	_, err := r.DB.ExecContext(ctx, "UPDATE users SET password_hash=?, recovery_hash=NULL, must_change_password=?, updated_at=? WHERE id=?", hash, mustChange, time.Now().UTC().Format(time.RFC3339Nano), id)
+	return err
+}
+func (r *Repository) UpdatePasswordWithRecovery(ctx context.Context, id, passwordHash, recoveryHash string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE users SET password_hash=?, recovery_hash=?, must_change_password=0, updated_at=? WHERE id=?", passwordHash, recoveryHash, time.Now().UTC().Format(time.RFC3339Nano), id)
+	return err
+}
+func (r *Repository) UpdateRecoveryCode(ctx context.Context, id, recoveryHash string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE users SET recovery_hash=?, updated_at=? WHERE id=?", recoveryHash, time.Now().UTC().Format(time.RFC3339Nano), id)
 	return err
 }
 func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {

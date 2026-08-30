@@ -14,7 +14,7 @@ const port = await new Promise((resolve, reject) => {
     server.close(error => error ? reject(error) : resolve(address.port));
   });
 });
-const env = { ...process.env, CASHFLOW_API_PORT: String(port) };
+const env = { ...process.env, CASHFLOW_API_PORT: String(port), CASHFLOW_ALLOW_STORAGE_CONFIGURATION: 'true' };
 const backend = spawn('go', ['run', './cmd/api', '-addr', `127.0.0.1:${port}`], { cwd: api, env, stdio: 'inherit' });
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const vite = spawn(pnpm, ['exec', 'vite'], { cwd: desktop, env, stdio: 'inherit' });
