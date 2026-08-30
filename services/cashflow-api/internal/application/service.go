@@ -69,6 +69,14 @@ func recoveryCode() (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
+func mcpAPIToken(createdAt time.Time) (string, error) {
+	nonce := make([]byte, 32)
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+	payload := base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf(`{"v":1,"createdAt":"%s","nonce":"%s"}`, createdAt.UTC().Format(time.RFC3339), base64.RawURLEncoding.EncodeToString(nonce))))
+	return "cf_mcp_" + payload, nil
+}
 func validatePassword(v string) error {
 	if len(v) < 12 {
 		return errors.New("password must contain at least 12 characters")
@@ -128,16 +136,16 @@ func (s *Service) CreateMCPAPIKey(ctx context.Context, actor domain.User, name, 
 	if scopes != "read" && scopes != "read,write" {
 		return domain.MCPAPIKey{}, "", errors.New("MCP API key scopes are invalid")
 	}
-	secret, err := recoveryCode()
+	createdAt := time.Now().UTC()
+	secret, err := mcpAPIToken(createdAt)
 	if err != nil {
 		return domain.MCPAPIKey{}, "", err
 	}
-	secret = "cf_mcp_" + secret
 	hashValue, err := hash(secret)
 	if err != nil {
 		return domain.MCPAPIKey{}, "", err
 	}
-	key := domain.MCPAPIKey{ID: uuid.NewString(), Name: strings.TrimSpace(name), UserID: actor.ID, Scopes: scopes, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	key := domain.MCPAPIKey{ID: uuid.NewString(), Name: strings.TrimSpace(name), UserID: actor.ID, Scopes: scopes, CreatedAt: createdAt.Format(time.RFC3339Nano)}
 	if err = s.Repo.CreateMCPAPIKey(ctx, key, hashValue); err != nil {
 		return domain.MCPAPIKey{}, "", err
 	}
@@ -145,6 +153,16 @@ func (s *Service) CreateMCPAPIKey(ctx context.Context, actor domain.User, name, 
 		return domain.MCPAPIKey{}, "", err
 	}
 	return key, secret, nil
+}
+func (s *Service) RecordMCPToolCall(ctx context.Context, actor domain.User, key domain.MCPAPIKey, tool string, input, result any, origin map[string]string, operationErr error) error {
+	outcome := "success"
+	metadata := map[string]any{"tool": tool, "key_name": key.Name, "scopes": key.Scopes, "input": input, "result": result, "origin": origin}
+	if operationErr != nil {
+		outcome = "error"
+		metadata["error"] = operationErr.Error()
+	}
+	metadata["outcome"] = outcome
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "mcp_tool_called", "mcp_api_key", key.ID, "mcp:"+key.ID, nil, metadata)
 }
 func (s *Service) ListMCPAPIKeys(ctx context.Context, actor domain.User) ([]domain.MCPAPIKey, error) {
 	if err := s.Require(actor, domain.RoleAdministrator); err != nil {

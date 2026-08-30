@@ -4,16 +4,127 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
 	"github.com/cashflow/desktop/api/internal/application"
+	"github.com/cashflow/desktop/api/internal/domain"
 	"github.com/cashflow/desktop/api/internal/httpapi"
 	"github.com/cashflow/desktop/api/internal/infrastructure/sqlite"
 	"log/slog"
 )
+
+func TestMCPInitializeWithAuthenticatedKey(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	app := application.New(repo)
+	ctx := context.Background()
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "mcp-route"); err != nil {
+		t.Fatal(err)
+	}
+	_, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = app.SaveMCPSettings(ctx, admin, true, "local", "mcp-route"); err != nil {
+		t.Fatal(err)
+	}
+	_, apiKey, err := app.CreateMCPAPIKey(ctx, admin, "test key", "read,write", "mcp-route")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(httpapi.New(app, slog.Default()).Handler())
+	defer server.Close()
+	body := bytes.NewBufferString(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0"}}}`)
+	request, err := http.NewRequest(http.MethodPost, server.URL+"/mcp", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer "+apiKey)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	responseBody, _ := io.ReadAll(response.Body)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("initialize status = %d, body = %s", response.StatusCode, responseBody)
+	}
+	if !bytes.Contains(responseBody, []byte(`"serverInfo"`)) {
+		t.Fatalf("initialize response does not contain server info: %s", responseBody)
+	}
+
+	toolRequest, err := http.NewRequest(http.MethodPost, server.URL+"/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"cashflow_list_accounts","arguments":{}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	toolRequest.Header.Set("Authorization", "Bearer "+apiKey)
+	toolRequest.Header.Set("Content-Type", "application/json")
+	toolRequest.Header.Set("Accept", "application/json, text/event-stream")
+	toolResponse, err := http.DefaultClient.Do(toolRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer toolResponse.Body.Close()
+	if toolResponse.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(toolResponse.Body)
+		t.Fatalf("tool status = %d, body = %s", toolResponse.StatusCode, body)
+	}
+	categoryRequest, err := http.NewRequest(http.MethodPost, server.URL+"/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"cashflow_create_category","arguments":{"name":"MCP test category","direction":"expense"}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	categoryRequest.Header.Set("Authorization", "Bearer "+apiKey)
+	categoryRequest.Header.Set("Content-Type", "application/json")
+	categoryRequest.Header.Set("Accept", "application/json, text/event-stream")
+	categoryResponse, err := http.DefaultClient.Do(categoryRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer categoryResponse.Body.Close()
+	if categoryResponse.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(categoryResponse.Body)
+		t.Fatalf("create category status = %d, body = %s", categoryResponse.StatusCode, body)
+	}
+	categories, err := repo.ListCategories(ctx)
+	if err != nil || !containsCategory(categories, "MCP test category") {
+		t.Fatalf("category was not created: %v", err)
+	}
+	events, err := repo.ListAuditEvents(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsMCPAuditEvent(events, "cashflow_list_accounts") || !containsMCPAuditEvent(events, "cashflow_create_category") {
+		t.Fatal("MCP tool calls were not recorded in audit events")
+	}
+}
+
+func containsCategory(categories []domain.Category, name string) bool {
+	for _, category := range categories {
+		if category.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func containsMCPAuditEvent(events []domain.AuditEvent, tool string) bool {
+	for _, event := range events {
+		if event.Action == "mcp_tool_called" && event.EntityType == "mcp_api_key" && event.CorrelationID != "" && bytes.Contains([]byte(event.After), []byte(`"`+tool+`"`)) {
+			return true
+		}
+	}
+	return false
+}
 
 func TestDeactivateCategoryRoute(t *testing.T) {
 	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))

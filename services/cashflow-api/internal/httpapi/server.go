@@ -22,10 +22,12 @@ import (
 )
 
 type Server struct {
-	App       *application.Service
-	Log       *slog.Logger
-	Logs      *logStore
-	storageMu sync.RWMutex
+	App        *application.Service
+	Log        *slog.Logger
+	Logs       *logStore
+	storageMu  sync.RWMutex
+	mcpOnce    sync.Once
+	mcpHandler http.Handler
 }
 
 type logEvent struct {

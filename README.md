@@ -78,3 +78,5 @@ La guía de uso está en [docs/README.md](docs/README.md). Las capturas de cada 
 ## Seguridad
 
 Las contraseñas y códigos de recuperación se almacenan con hash Argon2id. Las exportaciones CSV excluyen credenciales y secretos. Conservá el código de recuperación de un solo uso en un gestor de contraseñas.
+
+Las claves MCP se generan únicamente desde la aplicación, se muestran una sola vez y se almacenan como hash Argon2id. Consultá la [guía de MCP y agentes](docs/uso/mcp.md) para la configuración local, los permisos y un ejemplo seguro.
