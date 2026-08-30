@@ -84,6 +84,11 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/auth/logout", s.logout)
 	m.HandleFunc("POST /v1/auth/recover", s.recover)
 	m.HandleFunc("POST /v1/auth/change-password", s.changePassword)
+	m.HandleFunc("GET /v1/mcp/settings", s.mcpSettings)
+	m.HandleFunc("PUT /v1/mcp/settings", s.saveMCPSettings)
+	m.HandleFunc("GET /v1/mcp/keys", s.mcpAPIKeys)
+	m.HandleFunc("POST /v1/mcp/keys", s.createMCPAPIKey)
+	m.HandleFunc("POST /v1/mcp/keys/{id}/revoke", s.revokeMCPAPIKey)
 	m.HandleFunc("GET /v1/users", s.users)
 	m.HandleFunc("POST /v1/users", s.createUser)
 	m.HandleFunc("POST /v1/users/{id}/password", s.resetUserPassword)
@@ -493,6 +498,77 @@ func (s *Server) actor(w http.ResponseWriter, r *http.Request) (domain.User, boo
 		write(w, 401, map[string]string{"error": "authentication required"})
 	}
 	return u, ok
+}
+func (s *Server) mcpSettings(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	value, e := s.App.MCPSettings(r.Context(), a)
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	write(w, http.StatusOK, value)
+}
+func (s *Server) saveMCPSettings(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body domain.MCPSettings
+	if e := json.NewDecoder(r.Body).Decode(&body); e != nil {
+		fail(w, e)
+		return
+	}
+	if e := s.App.SaveMCPSettings(r.Context(), a, body.Enabled, body.ExposureMode, correlation(r.Context())); e != nil {
+		fail(w, e)
+		return
+	}
+	write(w, http.StatusOK, body)
+}
+func (s *Server) mcpAPIKeys(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	keys, e := s.App.ListMCPAPIKeys(r.Context(), a)
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	write(w, http.StatusOK, keys)
+}
+func (s *Server) createMCPAPIKey(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Name   string `json:"name"`
+		Scopes string `json:"scopes"`
+	}
+	if e := json.NewDecoder(r.Body).Decode(&body); e != nil {
+		fail(w, e)
+		return
+	}
+	key, secret, e := s.App.CreateMCPAPIKey(r.Context(), a, body.Name, body.Scopes, correlation(r.Context()))
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	write(w, http.StatusCreated, map[string]any{"key": key, "secret": secret})
+}
+func (s *Server) revokeMCPAPIKey(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	if e := s.App.RevokeMCPAPIKey(r.Context(), a, r.PathValue("id"), correlation(r.Context())); e != nil {
+		fail(w, e)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) users(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)

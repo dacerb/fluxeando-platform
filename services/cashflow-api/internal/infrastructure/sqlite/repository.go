@@ -212,12 +212,65 @@ INSERT INTO schema_migrations(version, applied_at) VALUES (7, datetime('now'));`
 CREATE INDEX remembered_sessions_user_id ON remembered_sessions(user_id);
 INSERT INTO schema_migrations(version, applied_at) VALUES (8, datetime('now'));`)
 	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=9").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `CREATE TABLE mcp_settings (id INTEGER PRIMARY KEY CHECK(id=1), enabled INTEGER NOT NULL DEFAULT 0, exposure_mode TEXT NOT NULL DEFAULT 'local' CHECK(exposure_mode IN ('local','remote')), updated_at TEXT NOT NULL);
+CREATE TABLE mcp_api_keys (id TEXT PRIMARY KEY, name TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), secret_hash TEXT NOT NULL UNIQUE, scopes TEXT NOT NULL, created_at TEXT NOT NULL, last_used_at TEXT, revoked_at TEXT);
+CREATE INDEX mcp_api_keys_user_id ON mcp_api_keys(user_id);
+INSERT INTO mcp_settings(id,enabled,exposure_mode,updated_at) VALUES(1,0,'local',datetime('now'));
+INSERT INTO schema_migrations(version, applied_at) VALUES (9, datetime('now'));`)
+	}
 	return err
 }
 func (r *Repository) Initialized(ctx context.Context) (bool, error) {
 	var n int
 	err := r.DB.QueryRowContext(ctx, "SELECT count(*) FROM users WHERE role='administrator'").Scan(&n)
 	return n > 0, err
+}
+func (r *Repository) MCPSettings(ctx context.Context) (domain.MCPSettings, error) {
+	var settings domain.MCPSettings
+	err := r.DB.QueryRowContext(ctx, "SELECT enabled,exposure_mode FROM mcp_settings WHERE id=1").Scan(&settings.Enabled, &settings.ExposureMode)
+	return settings, err
+}
+func (r *Repository) SaveMCPSettings(ctx context.Context, settings domain.MCPSettings) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE mcp_settings SET enabled=?,exposure_mode=?,updated_at=? WHERE id=1", settings.Enabled, settings.ExposureMode, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+func (r *Repository) CreateMCPAPIKey(ctx context.Context, key domain.MCPAPIKey, secretHash string) error {
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO mcp_api_keys(id,name,user_id,secret_hash,scopes,created_at) VALUES(?,?,?,?,?,?)", key.ID, key.Name, key.UserID, secretHash, key.Scopes, key.CreatedAt)
+	return err
+}
+func (r *Repository) ListMCPAPIKeys(ctx context.Context, userID string) ([]domain.MCPAPIKey, error) {
+	rows, err := r.DB.QueryContext(ctx, "SELECT id,name,user_id,scopes,created_at,COALESCE(last_used_at,''),COALESCE(revoked_at,'') FROM mcp_api_keys WHERE user_id=? ORDER BY created_at DESC", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	keys := []domain.MCPAPIKey{}
+	for rows.Next() {
+		var key domain.MCPAPIKey
+		if err = rows.Scan(&key.ID, &key.Name, &key.UserID, &key.Scopes, &key.CreatedAt, &key.LastUsedAt, &key.RevokedAt); err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}
+func (r *Repository) RevokeMCPAPIKey(ctx context.Context, id, userID string) error {
+	result, err := r.DB.ExecContext(ctx, "UPDATE mcp_api_keys SET revoked_at=? WHERE id=? AND user_id=? AND revoked_at IS NULL", time.Now().UTC().Format(time.RFC3339Nano), id, userID)
+	if err != nil {
+		return err
+	}
+	if count, _ := result.RowsAffected(); count == 0 {
+		return errors.New("MCP API key not found or already revoked")
+	}
+	return nil
 }
 func (r *Repository) CreateUser(ctx context.Context, id, email, name, hash, recovery, role string) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)

@@ -95,6 +95,72 @@ func validateInitialAdministrator(email, name, password string) error {
 	return nil
 }
 func (s *Service) Initialized(ctx context.Context) (bool, error) { return s.Repo.Initialized(ctx) }
+func (s *Service) MCPSettings(ctx context.Context, actor domain.User) (domain.MCPSettings, error) {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return domain.MCPSettings{}, err
+	}
+	return s.Repo.MCPSettings(ctx)
+}
+func (s *Service) SaveMCPSettings(ctx context.Context, actor domain.User, enabled bool, exposureMode, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return err
+	}
+	if exposureMode != "local" && exposureMode != "remote" {
+		return errors.New("MCP exposure mode must be local or remote")
+	}
+	before, err := s.Repo.MCPSettings(ctx)
+	if err != nil {
+		return err
+	}
+	after := domain.MCPSettings{Enabled: enabled, ExposureMode: exposureMode}
+	if err = s.Repo.SaveMCPSettings(ctx, after); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "mcp_settings_updated", "mcp_settings", "default", correlation, before, after)
+}
+func (s *Service) CreateMCPAPIKey(ctx context.Context, actor domain.User, name, scopes, correlation string) (domain.MCPAPIKey, string, error) {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return domain.MCPAPIKey{}, "", err
+	}
+	if strings.TrimSpace(name) == "" || len(name) > 120 {
+		return domain.MCPAPIKey{}, "", errors.New("MCP API key name is required")
+	}
+	if scopes != "read" && scopes != "read,write" {
+		return domain.MCPAPIKey{}, "", errors.New("MCP API key scopes are invalid")
+	}
+	secret, err := recoveryCode()
+	if err != nil {
+		return domain.MCPAPIKey{}, "", err
+	}
+	secret = "cf_mcp_" + secret
+	hashValue, err := hash(secret)
+	if err != nil {
+		return domain.MCPAPIKey{}, "", err
+	}
+	key := domain.MCPAPIKey{ID: uuid.NewString(), Name: strings.TrimSpace(name), UserID: actor.ID, Scopes: scopes, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	if err = s.Repo.CreateMCPAPIKey(ctx, key, hashValue); err != nil {
+		return domain.MCPAPIKey{}, "", err
+	}
+	if err = s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "mcp_api_key_created", "mcp_api_key", key.ID, correlation, nil, map[string]string{"name": key.Name, "scopes": key.Scopes}); err != nil {
+		return domain.MCPAPIKey{}, "", err
+	}
+	return key, secret, nil
+}
+func (s *Service) ListMCPAPIKeys(ctx context.Context, actor domain.User) ([]domain.MCPAPIKey, error) {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return nil, err
+	}
+	return s.Repo.ListMCPAPIKeys(ctx, actor.ID)
+}
+func (s *Service) RevokeMCPAPIKey(ctx context.Context, actor domain.User, id, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return err
+	}
+	if err := s.Repo.RevokeMCPAPIKey(ctx, id, actor.ID); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "mcp_api_key_revoked", "mcp_api_key", id, correlation, nil, nil)
+}
 func (s *Service) RecordPreferenceChange(ctx context.Context, actor domain.User, kind string, before, after map[string]string, correlation string) error {
 	if kind != "appearance" && kind != "language" {
 		return errors.New("unsupported preference change")

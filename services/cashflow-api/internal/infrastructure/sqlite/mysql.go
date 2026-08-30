@@ -49,11 +49,16 @@ CREATE TABLE IF NOT EXISTS audit_events (id VARCHAR(64) PRIMARY KEY, actor_id VA
 CREATE TABLE IF NOT EXISTS deletion_requests (id VARCHAR(64) PRIMARY KEY, entity_type VARCHAR(64) NOT NULL, entity_id VARCHAR(64) NOT NULL, requested_by VARCHAR(64) NOT NULL, requested_by_name VARCHAR(255) NOT NULL DEFAULT '', reason TEXT NOT NULL, status VARCHAR(32) NOT NULL, resolved_by VARCHAR(64) NULL, created_at VARCHAR(64) NOT NULL, resolved_at VARCHAR(64) NULL, CONSTRAINT deletion_requests_requester_fk FOREIGN KEY (requested_by) REFERENCES users(id), CONSTRAINT deletion_requests_resolver_fk FOREIGN KEY (resolved_by) REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS saved_filters (id VARCHAR(64) PRIMARY KEY, user_id VARCHAR(64) NOT NULL, name VARCHAR(255) NOT NULL, query TEXT NOT NULL, created_at VARCHAR(64) NOT NULL, updated_at VARCHAR(64) NOT NULL, UNIQUE KEY saved_filters_user_name (user_id, name), CONSTRAINT saved_filters_user_fk FOREIGN KEY (user_id) REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS remembered_sessions (token_hash VARCHAR(128) PRIMARY KEY, user_id VARCHAR(64) NOT NULL, expires_at VARCHAR(64) NOT NULL, created_at VARCHAR(64) NOT NULL, INDEX remembered_sessions_user_id (user_id), CONSTRAINT remembered_sessions_user_fk FOREIGN KEY (user_id) REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS mcp_settings (id INT PRIMARY KEY, enabled BOOLEAN NOT NULL DEFAULT FALSE, exposure_mode VARCHAR(16) NOT NULL DEFAULT 'local', updated_at VARCHAR(64) NOT NULL);
+CREATE TABLE IF NOT EXISTS mcp_api_keys (id VARCHAR(64) PRIMARY KEY, name VARCHAR(255) NOT NULL, user_id VARCHAR(64) NOT NULL, secret_hash TEXT NOT NULL, scopes VARCHAR(255) NOT NULL, created_at VARCHAR(64) NOT NULL, last_used_at VARCHAR(64) NULL, revoked_at VARCHAR(64) NULL, UNIQUE KEY mcp_api_keys_secret_hash (secret_hash(191)), INDEX mcp_api_keys_user_id (user_id), CONSTRAINT mcp_api_keys_user_fk FOREIGN KEY (user_id) REFERENCES users(id));
 `)
 	if err != nil {
 		return err
 	}
-	for version := 1; version <= 8; version++ {
+	if _, err = r.DB.ExecContext(ctx, "INSERT IGNORE INTO mcp_settings(id,enabled,exposure_mode,updated_at) VALUES (1,FALSE,'local',UTC_TIMESTAMP())"); err != nil {
+		return err
+	}
+	for version := 1; version <= 9; version++ {
 		if _, err = r.DB.ExecContext(ctx, "INSERT INTO schema_migrations(version, applied_at) VALUES (?, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE version=version", version); err != nil {
 			return err
 		}

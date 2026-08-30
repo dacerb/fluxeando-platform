@@ -55,6 +55,19 @@ type SavedFilter struct {
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
 }
+type MCPSettings struct {
+	Enabled      bool   `json:"enabled"`
+	ExposureMode string `json:"exposureMode"`
+}
+type MCPAPIKey struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	UserID     string `json:"userId"`
+	Scopes     string `json:"scopes"`
+	CreatedAt  string `json:"createdAt"`
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
+	RevokedAt  string `json:"revokedAt,omitempty"`
+}
 type Account struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
