@@ -30,6 +30,18 @@ pnpm --filter @cashflow/desktop web
 
 La API queda disponible únicamente en `127.0.0.1`. En modo de producción Electron la inicia y la mantiene detrás de un puente IPC limitado.
 
+## Ubicación de la base de datos SQLite
+
+La aplicación guarda la base local en un único archivo SQLite. La ubicación predeterminada depende de cómo se ejecute:
+
+| Entorno | Ubicación predeterminada |
+| --- | --- |
+| Web local y desarrollo (`pnpm dev`) | `services/cashflow-api/cashflow.db` dentro del repositorio |
+| Aplicación instalada en Windows | `%APPDATA%\\CashFlow\\cashflow.db` |
+| Aplicación instalada en macOS | `~/Library/Application Support/CashFlow/cashflow.db` |
+
+En las aplicaciones de escritorio se puede elegir otra ubicación desde la configuración de almacenamiento. Si se selecciona una base existente o se crea una en otra carpeta, esa ruta reemplaza a la predeterminada.
+
 ## Crear instaladores locales
 
 ```bash
