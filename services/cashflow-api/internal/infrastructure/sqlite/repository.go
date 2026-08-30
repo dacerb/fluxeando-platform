@@ -272,6 +272,29 @@ func (r *Repository) RevokeMCPAPIKey(ctx context.Context, id, userID string) err
 	}
 	return nil
 }
+func (r *Repository) MCPAPIKeyCredentials(ctx context.Context) ([]domain.MCPAPIKey, []string, error) {
+	rows, err := r.DB.QueryContext(ctx, "SELECT k.id,k.name,k.user_id,k.scopes,k.created_at,COALESCE(k.last_used_at,''),COALESCE(k.revoked_at,''),k.secret_hash FROM mcp_api_keys k JOIN users u ON u.id=k.user_id WHERE k.revoked_at IS NULL AND u.active=1")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	keys := []domain.MCPAPIKey{}
+	hashes := []string{}
+	for rows.Next() {
+		var key domain.MCPAPIKey
+		var hash string
+		if err = rows.Scan(&key.ID, &key.Name, &key.UserID, &key.Scopes, &key.CreatedAt, &key.LastUsedAt, &key.RevokedAt, &hash); err != nil {
+			return nil, nil, err
+		}
+		keys = append(keys, key)
+		hashes = append(hashes, hash)
+	}
+	return keys, hashes, rows.Err()
+}
+func (r *Repository) MarkMCPAPIKeyUsed(ctx context.Context, id string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE mcp_api_keys SET last_used_at=? WHERE id=?", time.Now().UTC().Format(time.RFC3339Nano), id)
+	return err
+}
 func (r *Repository) CreateUser(ctx context.Context, id, email, name, hash, recovery, role string) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, err := r.DB.ExecContext(ctx, "INSERT INTO users(id,email,display_name,password_hash,recovery_hash,role,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,0,?,?)", id, email, name, hash, recovery, role, now, now)

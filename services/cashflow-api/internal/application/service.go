@@ -161,6 +161,28 @@ func (s *Service) RevokeMCPAPIKey(ctx context.Context, actor domain.User, id, co
 	}
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "mcp_api_key_revoked", "mcp_api_key", id, correlation, nil, nil)
 }
+func (s *Service) AuthenticateMCPAPIKey(ctx context.Context, secret string) (domain.User, domain.MCPAPIKey, error) {
+	if !strings.HasPrefix(secret, "cf_mcp_") {
+		return domain.User{}, domain.MCPAPIKey{}, errors.New("invalid MCP API key")
+	}
+	keys, hashes, err := s.Repo.MCPAPIKeyCredentials(ctx)
+	if err != nil {
+		return domain.User{}, domain.MCPAPIKey{}, err
+	}
+	for index, key := range keys {
+		if verify(secret, hashes[index]) {
+			user, err := s.Repo.User(ctx, key.UserID)
+			if err != nil {
+				return domain.User{}, domain.MCPAPIKey{}, err
+			}
+			if err = s.Repo.MarkMCPAPIKeyUsed(ctx, key.ID); err != nil {
+				return domain.User{}, domain.MCPAPIKey{}, err
+			}
+			return user, key, nil
+		}
+	}
+	return domain.User{}, domain.MCPAPIKey{}, errors.New("invalid MCP API key")
+}
 func (s *Service) RecordPreferenceChange(ctx context.Context, actor domain.User, kind string, before, after map[string]string, correlation string) error {
 	if kind != "appearance" && kind != "language" {
 		return errors.New("unsupported preference change")

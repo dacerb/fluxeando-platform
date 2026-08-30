@@ -73,6 +73,7 @@ func New(app *application.Service, log *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /health", s.health)
+	m.Handle("/mcp", s.mcpHTTP())
 	m.HandleFunc("GET /v1/setup", s.setup)
 	m.HandleFunc("POST /v1/setup/initialize", s.initialize)
 	m.HandleFunc("POST /v1/storage/import", s.importStorage)
