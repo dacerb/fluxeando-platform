@@ -17,3 +17,4 @@ deploy/secrets/*.txt
 
 # Guía local de publicación, útil para el operador pero no parte del producto.
 RELEASE-LOCAL.md
+TSHOOT.md
