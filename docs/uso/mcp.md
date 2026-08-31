@@ -13,7 +13,7 @@ El token es Base64URL, incorpora su versión y fecha de creación, y contiene 32
 
 ## Ejemplo de configuración
 
-Usá la URL efectiva que muestra la aplicación. En desarrollo, el puerto puede cambiar en cada inicio.
+La aplicación usa `http://127.0.0.1:8787/mcp` por defecto. Si ese puerto ya está ocupado, te pedirá autorización para usar otro puerto local disponible y mostrará la URL efectiva en la guía de conexión.
 
 ```json
 {

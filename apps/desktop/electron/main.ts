@@ -14,6 +14,11 @@ type MySQLStorageConfig = { mode: 'mysql'; host: string; port: string; database:
 type StorageConfig = LocalStorageConfig | MySQLStorageConfig;
 let storageConfig: StorageConfig | undefined;
 let backendError = '';
+let backendStarting = false;
+let resolveRendererReady: (() => void) | undefined;
+let resolvePortConflict: ((useAlternatePort: boolean) => void) | undefined;
+const rendererReady = new Promise<void>(resolve => { resolveRendererReady = resolve; });
+const defaultAPIPort = 8787;
 const defaultDatabasePath = () => path.join(app.getPath('userData'), 'cashflow.db');
 const newDefaultDatabasePath = () => {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -65,6 +70,24 @@ function findFreePort(): Promise<number> {
     });
   });
 }
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise(resolve => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.listen(port, '127.0.0.1', () => server.close(error => resolve(!error)));
+  });
+}
+async function chooseBackendPort(): Promise<number> {
+  if (await isPortAvailable(defaultAPIPort)) return defaultAPIPort;
+  if (!mainWindow || mainWindow.isDestroyed()) throw new Error(`El puerto ${defaultAPIPort} está ocupado`);
+  const useAlternatePort = await new Promise<boolean>(resolve => {
+    resolvePortConflict = resolve;
+    mainWindow?.webContents.send('cashflow:port-conflict', { port: defaultAPIPort });
+  });
+  resolvePortConflict = undefined;
+  if (!useAlternatePort) throw new Error(`El puerto ${defaultAPIPort} está ocupado y no se autorizó usar otro puerto local`);
+  return findFreePort();
+}
 async function waitForApi() {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try { if ((await fetch(`${apiUrl}/health`)).ok) return; } catch { /* backend is starting */ }
@@ -72,11 +95,11 @@ async function waitForApi() {
   }
   throw new Error('Local CashFlow API did not become ready');
 }
-async function startBackend() {
+async function startBackend(options: { preferMCPPort?: boolean } = {}) {
   backendError = '';
   if (process.env.CASHFLOW_API_URL) { apiUrl = process.env.CASHFLOW_API_URL; await waitForApi(); return; }
   if (!storageConfig) throw new Error('Storage must be configured before starting the local API');
-  const port = await findFreePort();
+  const port = options.preferMCPPort === false ? await findFreePort() : await chooseBackendPort();
   apiUrl = `http://127.0.0.1:${port}`;
   const executable = process.env.CASHFLOW_API_BIN ?? path.join(process.resourcesPath, 'cashflow-api', process.platform === 'win32' ? 'cashflow-api.exe' : 'cashflow-api');
   const args = ['-addr', `127.0.0.1:${port}`];
@@ -159,8 +182,22 @@ ipcMain.handle('cashflow:download', apiDownload);
 ipcMain.handle('cashflow:remembered-session:get', () => loadRememberedSession());
 ipcMain.handle('cashflow:remembered-session:set', (_event, token: string) => { if (typeof token !== 'string' || !token) throw new Error('Invalid remembered session'); saveRememberedSession(token); });
 ipcMain.handle('cashflow:remembered-session:clear', () => clearRememberedSession());
+ipcMain.handle('cashflow:renderer-ready', () => resolveRendererReady?.());
+ipcMain.handle('cashflow:port-conflict:choose', (_, useAlternatePort: boolean) => resolvePortConflict?.(Boolean(useAlternatePort)));
+ipcMain.handle('cashflow:mcp-enabled-changed', async (_, enabled: boolean) => {
+  if (process.env.CASHFLOW_API_URL || !storageConfig) return;
+  await stopBackend();
+  try {
+    await startBackend({ preferMCPPort: Boolean(enabled) });
+  } catch (error) {
+    await startBackend({ preferMCPPort: false });
+    throw error;
+  } finally {
+    mainWindow?.webContents.send('cashflow:mcp-url-changed');
+  }
+});
 ipcMain.handle('cashflow:runtime', () => {
-  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), backendReady: Boolean(apiUrl) && !backendError, backendError: backendError || undefined, storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
+  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), backendStarting, backendReady: Boolean(apiUrl) && !backendError, backendError: backendError || undefined, mcpUrl: apiUrl ? `${apiUrl}/mcp` : undefined, storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
 });
 ipcMain.handle('cashflow:reveal-database', () => {
   if (storageConfig?.mode !== 'local' || !storageConfig.dbPath) throw new Error('A local database is not configured');
@@ -213,7 +250,7 @@ ipcMain.handle('cashflow:configure-mysql', async (_event, input: { host: string;
   catch (error) { storageConfig = previous; if (previous) { try { await startBackend(); } catch { /* Keep the previous configuration for the next launch. */ } } throw error; }
   return { mode: 'mysql', host: next.host, port: next.port, database: next.database, username: next.username };
 });
-app.whenReady().then(async () => { app.dock?.setIcon(appIconPath()); storageConfig = loadStorageConfig(); try { if (storageConfig) await startBackend(); } catch (error) { console.error('Unable to start local Go API', error); } createWindow(); });
+app.whenReady().then(async () => { app.dock?.setIcon(appIconPath()); storageConfig = loadStorageConfig(); backendStarting = Boolean(storageConfig); createWindow(); await rendererReady; try { if (storageConfig) await startBackend(); } catch (error) { backendError = error instanceof Error ? error.message : 'The local API did not start'; console.error('Unable to start local Go API', error); } finally { backendStarting = false; mainWindow?.webContents.reload(); } });
 app.on('before-quit', () => backend?.kill());
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => createWindow());
