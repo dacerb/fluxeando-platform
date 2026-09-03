@@ -1,15 +1,15 @@
 {
   "name": "@cashflow/desktop",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "main": "dist/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"cd ../../services/cashflow-api && go run ./cmd/api\" \"wait-on http://127.0.0.1:5173 && tsc -p tsconfig.main.json && cross-env CASHFLOW_API_URL=http://127.0.0.1:8787 electron .\"",
     "web": "node ../../scripts/web-dev.mjs",
     "build": "vite build && tsc -p tsconfig.main.json",
-    "package": "node ../../scripts/build-backend.mjs all && npm run build && electron-builder",
-    "package:mac": "node ../../scripts/build-backend.mjs mac-arm64 && npm run build && electron-builder --mac dmg --arm64",
-    "package:win": "node ../../scripts/build-backend.mjs win-x64 && npm run build && electron-builder --win nsis --x64",
+    "package": "node ../../scripts/build-backend.mjs all && pnpm run build && electron-builder",
+    "package:mac": "node ../../scripts/build-backend.mjs mac-arm64 && pnpm run build && electron-builder --mac dmg --arm64",
+    "package:win": "node ../../scripts/build-backend.mjs win-x64 && pnpm run build && electron-builder --win nsis --x64",
     "lint": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -70,6 +70,14 @@
       "target": [
         "nsis"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
     }
   }
 }

@@ -21,7 +21,29 @@ body[data-color-mode='dark'] .theme-switch .MuiSwitch-switchBase.Mui-checked .Mu
 @media(max-width:520px){.auth-topbar{grid-template-columns:140px 116px minmax(0,1fr)!important}}
 .recovery-card{min-height:0}.recovery-card .auth-copy{min-height:0;margin-bottom:20px}.recovery-code{width:100%;margin:0 0 20px;padding:18px 20px;border:1px solid var(--m3-outline-variant,#dedbd7);border-radius:12px;background:var(--m3-inverse-surface,#272322);color:var(--m3-inverse-on-surface,#fff);font-family:ui-monospace,SFMono-Regular,monospace;line-height:1.5;overflow-wrap:anywhere;user-select:all}.recovery-card>button{width:100%;min-height:50px}
 .auth-card .remember-session{align-self:flex-start;margin:12px 0 16px!important;color:var(--ui-text,#1d1c1d)}.auth-card .remember-session .MuiCheckbox-root{padding:6px!important;color:var(--ui-text-muted,#77736f)!important}.auth-card .remember-session .MuiCheckbox-root.Mui-checked{color:var(--ui-accent,#4e4d4a)!important}.auth-card .remember-session .cashflow-checkbox-checked{display:inline-flex!important;width:24px!important;height:24px!important}.auth-card .remember-session .cashflow-checkbox-checked rect{fill:var(--ui-accent,#4e4d4a)!important}.auth-card .remember-session .cashflow-checkbox-checked path{stroke:var(--ui-on-accent,#000)!important}.auth-card .remember-session .MuiCheckbox-input{min-height:0!important;width:100%!important;height:100%!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}.auth-card .remember-session .MuiFormControlLabel-label{color:var(--ui-text,#1d1c1d)!important;font-size:1rem!important}
-.auth-card .auth-secondary-action{margin-top:10px;background:transparent!important;color:var(--m3-on-surface,#272322)!important;border:1px solid var(--m3-outline,#77736f)!important}.auth-card .auth-secondary-action:hover{background:var(--m3-surface-container-high,#ebe8e5)!important}.setup-card,.recovery-account-card{min-height:0}.recovery-account-card .auth-copy{min-height:0}
+.auth-card .auth-secondary-action{margin-top:10px;background:transparent!important;color:var(--m3-on-surface,#272322)!important;border:1px solid var(--m3-outline,#77736f)!important}.auth-card .auth-secondary-action:hover{background:var(--m3-surface-container-high,#ebe8e5)!important}.recovery-account-card{min-height:0}.recovery-account-card .auth-copy{min-height:0}
+/* La alta inicial conserva el mismo encuadre al alternar idioma. El texto
+   puede variar, pero sus reservas y los controles finales no desplazan la
+   tarjeta en web ni en los clientes de escritorio. */
+@media (min-width:521px){
+  .auth-card.setup-card{height:min(750px,calc(100dvh - 48px));min-height:min(750px,calc(100dvh - 48px));box-sizing:border-box}
+  .setup-card .auth-topbar{margin-bottom:18px}
+  .setup-card .brand{flex:0 0 104px;min-height:104px;margin-top:0;margin-bottom:18px}
+  .setup-card .brand-logo{width:72px!important;height:68px!important}
+  .setup-card .brand-logo img{width:68px!important;height:62px!important;transform:none}
+  .setup-card>h1{min-height:44px}
+  .setup-card>h1+p{min-height:64px}
+  .setup-card form{flex:0 0 auto;margin-top:auto}
+  .setup-card .runtime-meta{flex:0 0 auto}
+}
+@media (min-width:521px) and (max-height:800px){
+  .auth-card.setup-card{padding:32px}
+  .setup-card .auth-topbar{margin-bottom:14px}
+  .setup-card .brand{flex-basis:90px;min-height:90px;margin-bottom:14px;padding:12px 16px}
+  .setup-card .brand-logo{width:64px!important;height:60px!important}
+  .setup-card .brand-logo img{width:60px!important;height:56px!important}
+  .setup-card .runtime-meta{margin-top:14px!important}
+}
 .setup-error-flash{min-width:min(520px,calc(100vw - 32px));border-radius:14px!important;background:var(--m3-error,#ba1a1a)!important;color:var(--m3-on-error,#fff)!important;box-shadow:0 14px 30px color-mix(in srgb,#000 26%,transparent)!important;font-weight:700}.setup-error-flash .MuiAlert-icon,.setup-error-flash .MuiAlert-action{color:inherit!important}
 .MuiSnackbar-root.MuiSnackbar-anchorOriginTopCenter{top:24px!important;right:auto!important;bottom:auto!important;left:50%!important;transform:translateX(-50%)!important}
 .recovery-account-card .error{position:fixed!important;z-index:1500!important;top:24px!important;right:auto!important;left:50%!important;width:min(520px,calc(100vw - 32px));margin:0!important;padding:15px 18px!important;transform:translateX(-50%)!important;border-radius:14px!important;background:var(--m3-error,#ba1a1a)!important;color:var(--m3-on-error,#fff)!important;box-shadow:0 14px 30px color-mix(in srgb,#000 26%,transparent)!important;font-weight:700}

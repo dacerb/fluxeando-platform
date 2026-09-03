@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electro
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { spawn, ChildProcess } from 'node:child_process';
+import { execFileSync, spawn, ChildProcess } from 'node:child_process';
 import net from 'node:net';
 
 let backend: ChildProcess | undefined;
@@ -29,6 +29,16 @@ const newDefaultDatabasePath = () => {
 };
 const storageConfigPath = () => path.join(app.getPath('userData'), 'storage.json');
 const rememberedSessionPath = () => path.join(app.getPath('userData'), 'remembered-session.bin');
+function rememberCleanupDatabase(config: StorageConfig | undefined) {
+  if (process.platform !== 'win32') return;
+  try {
+    if (config?.mode === 'local') {
+      execFileSync('reg.exe', ['add', 'HKCU\\Software\\CashFlow', '/v', 'LocalDatabasePath', '/t', 'REG_SZ', '/d', config.dbPath, '/f'], { windowsHide: true });
+    } else {
+      execFileSync('reg.exe', ['delete', 'HKCU\\Software\\CashFlow', '/v', 'LocalDatabasePath', '/f'], { windowsHide: true });
+    }
+  } catch { /* The uninstaller can still remove the app profile if the registry is unavailable. */ }
+}
 function saveRememberedSession(token: string) {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure system storage is unavailable on this device');
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
@@ -58,6 +68,7 @@ function loadStorageConfig(): StorageConfig | undefined {
 function saveStorageConfig(config: StorageConfig) {
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
   fs.writeFileSync(storageConfigPath(), JSON.stringify(config), { encoding: 'utf8', mode: 0o600 });
+  rememberCleanupDatabase(config);
 }
 function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -168,7 +179,7 @@ async function apiDownload(_: Electron.IpcMainInvokeEvent, input: { path: string
 }
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); return; }
-  const win = new BrowserWindow({ width: 1200, height: 780, show: true, icon: appIconPath(), webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
+  const win = new BrowserWindow({ width: 1200, height: 780, minWidth: 1024, minHeight: 720, show: true, icon: appIconPath(), webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
   mainWindow = win;
   win.on('closed', () => { mainWindow = undefined; });
   win.webContents.on('did-fail-load', (_, code, description) => console.error('Renderer failed to load', { code, description }));
@@ -197,7 +208,7 @@ ipcMain.handle('cashflow:mcp-enabled-changed', async (_, enabled: boolean) => {
   }
 });
 ipcMain.handle('cashflow:runtime', () => {
-  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', storageConfigured: Boolean(storageConfig), backendStarting, backendReady: Boolean(apiUrl) && !backendError, backendError: backendError || undefined, mcpUrl: apiUrl ? `${apiUrl}/mcp` : undefined, storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
+  return { version: app.getVersion(), mode: process.env.VITE_DEV_SERVER_URL ? 'Development desktop' : 'Production desktop', platform: process.platform, storageConfigured: Boolean(storageConfig), backendStarting, backendReady: Boolean(apiUrl) && !backendError, backendError: backendError || undefined, mcpUrl: apiUrl ? `${apiUrl}/mcp` : undefined, storageType: storageConfig?.mode === 'mysql' ? 'mysql' : 'local_sqlite', dbPath: storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined, defaultDbPath: defaultDatabasePath(), mysql: storageConfig?.mode === 'mysql' ? { host: storageConfig.host, port: storageConfig.port, database: storageConfig.database, username: storageConfig.username } : undefined };
 });
 ipcMain.handle('cashflow:reveal-database', () => {
   if (storageConfig?.mode !== 'local' || !storageConfig.dbPath) throw new Error('A local database is not configured');
@@ -250,7 +261,7 @@ ipcMain.handle('cashflow:configure-mysql', async (_event, input: { host: string;
   catch (error) { storageConfig = previous; if (previous) { try { await startBackend(); } catch { /* Keep the previous configuration for the next launch. */ } } throw error; }
   return { mode: 'mysql', host: next.host, port: next.port, database: next.database, username: next.username };
 });
-app.whenReady().then(async () => { app.dock?.setIcon(appIconPath()); storageConfig = loadStorageConfig(); backendStarting = Boolean(storageConfig); createWindow(); await rendererReady; try { if (storageConfig) await startBackend(); } catch (error) { backendError = error instanceof Error ? error.message : 'The local API did not start'; console.error('Unable to start local Go API', error); } finally { backendStarting = false; mainWindow?.webContents.reload(); } });
+app.whenReady().then(async () => { app.dock?.setIcon(appIconPath()); storageConfig = loadStorageConfig(); rememberCleanupDatabase(storageConfig); backendStarting = Boolean(storageConfig); createWindow(); await rendererReady; try { if (storageConfig) await startBackend(); } catch (error) { backendError = error instanceof Error ? error.message : 'The local API did not start'; console.error('Unable to start local Go API', error); } finally { backendStarting = false; mainWindow?.webContents.reload(); } });
 app.on('before-quit', () => backend?.kill());
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => createWindow());

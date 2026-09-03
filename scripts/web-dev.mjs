@@ -17,7 +17,12 @@ const port = await new Promise((resolve, reject) => {
 const env = { ...process.env, CASHFLOW_API_PORT: String(port), CASHFLOW_ALLOW_STORAGE_CONFIGURATION: 'true' };
 const backend = spawn('go', ['run', './cmd/api', '-addr', `127.0.0.1:${port}`], { cwd: api, env, stdio: 'inherit' });
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-const vite = spawn(pnpm, ['exec', 'vite'], { cwd: desktop, env, stdio: 'inherit' });
+// Windows cannot invoke a .cmd shim directly through child_process on every
+// supported Node version. Start the command interpreter explicitly so its
+// lifetime follows Vite (instead of using `shell: true`, which returns early).
+const vite = process.platform === 'win32'
+  ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `${pnpm} exec vite`], { cwd: desktop, env, stdio: 'inherit' })
+  : spawn(pnpm, ['exec', 'vite'], { cwd: desktop, env, stdio: 'inherit' });
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { backend.kill(signal); vite.kill(signal); });
 backend.on('exit', code => { if (code) vite.kill(); });
 vite.on('exit', () => backend.kill());

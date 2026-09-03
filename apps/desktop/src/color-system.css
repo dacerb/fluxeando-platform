@@ -558,16 +558,21 @@ body[data-color-mode='dark'] .login-transition { background: var(--ui-canvas) !i
   content: '';
   position: absolute;
   z-index: 0;
-  inset: -18%;
+  inset: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: min(108vw, 1280px) !important;
+  height: min(108vw, 1280px) !important;
   pointer-events: none;
   background: radial-gradient(
-    ellipse at 50% 48%,
-    color-mix(in srgb, var(--ui-accent) 38%, transparent) 0,
-    color-mix(in srgb, var(--ui-accent) 18%, transparent) 34%,
-    transparent 70%
+    circle at center,
+    color-mix(in srgb, var(--ui-accent) 42%, transparent) 0,
+    color-mix(in srgb, var(--ui-accent) 20%, transparent) 34%,
+    color-mix(in srgb, var(--ui-accent) 8%, transparent) 52%,
+    transparent 72%
   );
-  filter: blur(30px);
-  animation: auth-aura-pulse 2.8s ease-in-out infinite;
+  filter: blur(58px);
+  animation: auth-aura-pulse 3.4s ease-in-out infinite;
 }
 .auth-shell > * {
   position: relative;
@@ -577,15 +582,25 @@ body[data-color-mode='dark'] .auth-shell { background: var(--ui-canvas) !importa
 body[data-color-mode='dark'] .auth-card { background: var(--ui-surface-container) !important; }
 body[data-color-mode='dark'] .auth-shell::before {
   background: radial-gradient(
-    ellipse at 50% 48%,
-    color-mix(in srgb, var(--ui-accent) 28%, transparent) 0,
-    color-mix(in srgb, var(--ui-accent) 13%, transparent) 25%,
-    transparent 56%
+    circle at center,
+    color-mix(in srgb, var(--ui-accent) 34%, transparent) 0,
+    color-mix(in srgb, var(--ui-accent) 16%, transparent) 34%,
+    color-mix(in srgb, var(--ui-accent) 6%, transparent) 54%,
+    transparent 74%
   );
 }
 @keyframes auth-aura-pulse {
-  0%, 100% { opacity: .86; transform: scale(.92); }
-  50% { opacity: 1; transform: scale(1.1); }
+  0%, 100% { opacity: .72; transform: translate(-50%, -50%) scale(.88); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+/* Experiencia común: un único resplandor que respira detrás de la tarjeta.
+   Los ajustes por plataforma no alteran esta composición visual. */
+.auth-shell::after {
+  display: none !important;
+}
+.auth-shell::before {
+  transform-origin: center;
 }
 @media (prefers-reduced-motion: reduce) {
   .auth-shell::before { animation: none; }
@@ -1723,6 +1738,7 @@ body .MuiSwitch-root:has(.MuiSwitch-input:focus-visible) {
   border-top: 3px solid var(--ui-accent);
   background: color-mix(in srgb, var(--ui-surface-container) 72%, transparent);
 }
+body[data-runtime-platform='win32'] .app-content > .page-context-bar { width: 100%; max-width: none; margin-left: 0; margin-right: 0; }
 .page-context-bar > p { margin: 0; color: var(--ui-text-muted); font-size: .9rem; }
 .page-context-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 40px; }
 .page-context-actions:empty::after { content: ''; display: block; width: 1px; height: 1px; }
