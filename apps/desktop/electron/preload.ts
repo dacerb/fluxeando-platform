@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('cashflow', {
   onMCPUrlChanged: (listener: () => void) => { const callback = () => listener(); ipcRenderer.on('cashflow:mcp-url-changed', callback); return () => ipcRenderer.removeListener('cashflow:mcp-url-changed', callback); },
   runtime: () => ipcRenderer.invoke('cashflow:runtime'),
   revealDatabase: () => ipcRenderer.invoke('cashflow:reveal-database'),
+  chooseBackupFolder: () => ipcRenderer.invoke('cashflow:choose-backup-folder'),
   chooseDatabase: (input: { dbPath?: string }) => ipcRenderer.invoke('cashflow:choose-database', input),
   chooseNewDatabase: (input: { dbPath?: string }) => ipcRenderer.invoke('cashflow:choose-new-database', input),
   configureStorage: (input: { mode: 'local' | 'network'; dbPath: string }) => ipcRenderer.invoke('cashflow:configure-storage', input),

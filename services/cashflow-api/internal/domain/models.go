@@ -59,6 +59,15 @@ type MCPSettings struct {
 	Enabled      bool   `json:"enabled"`
 	ExposureMode string `json:"exposureMode"`
 }
+type BackupSettings struct {
+	Provider        string `json:"provider"`
+	FilesystemPath  string `json:"filesystemPath,omitempty"`
+	FilenamePrefix  string `json:"filenamePrefix,omitempty"`
+	GoogleFolderID  string `json:"googleFolderId,omitempty"`
+	GoogleConnected bool   `json:"googleConnected"`
+	LastBackupAt    string `json:"lastBackupAt,omitempty"`
+	LastError       string `json:"lastError,omitempty"`
+}
 type MCPAPIKey struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`

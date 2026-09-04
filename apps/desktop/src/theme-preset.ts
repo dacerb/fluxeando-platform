@@ -4,5 +4,5 @@ import type { DarkPaletteName } from './theme-tokens';
 export const activeThemePreset = {
   lightAccent: 'graphite',
   darkAccent: 'graphite' as DarkPaletteName,
-  maxPaletteOptions: 4
+  maxPaletteOptions: 2
 } as const;

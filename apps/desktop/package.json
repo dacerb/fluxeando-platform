@@ -44,7 +44,8 @@
     "appId": "com.cashflow.desktop",
     "productName": "CashFlow",
     "files": [
-      "dist/**",
+      "dist/main.js",
+      "dist/preload.js",
       "renderer/**",
       "package.json"
     ],

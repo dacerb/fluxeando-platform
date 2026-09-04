@@ -19,6 +19,7 @@ import (
 
 type Service struct {
 	Repo     *sqlite.Repository
+	Backups  *BackupManager
 	sessions map[string]domain.User
 	mu       sync.RWMutex
 }
@@ -28,8 +29,68 @@ type TransactionImport struct {
 	AmountMinor                                                             int64
 }
 
-func New(repo *sqlite.Repository) *Service {
-	return &Service{Repo: repo, sessions: map[string]domain.User{}}
+func New(repo *sqlite.Repository, backupOptions ...*BackupManager) *Service {
+	var backups *BackupManager
+	if len(backupOptions) > 0 {
+		backups = backupOptions[0]
+	}
+	return &Service{Repo: repo, Backups: backups, sessions: map[string]domain.User{}}
+}
+func (s *Service) BackupSettings(ctx context.Context, actor domain.User) (domain.BackupSettings, error) {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return domain.BackupSettings{}, err
+	}
+	value, err := s.Repo.BackupSettings(ctx)
+	if err == nil && s.Backups != nil {
+		value.GoogleConnected = s.Backups.GoogleConnected(ctx)
+	}
+	return value, err
+}
+func (s *Service) SaveBackupSettings(ctx context.Context, actor domain.User, value domain.BackupSettings, correlation string) error {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return err
+	}
+	if err := ValidateBackupSettings(value); err != nil {
+		return err
+	}
+	if value.Provider == "google_drive" {
+		folderID, err := NormalizeGoogleFolderID(value.GoogleFolderID)
+		if err != nil {
+			return err
+		}
+		value.GoogleFolderID = folderID
+	}
+	if value.Provider == "google_drive" && (s.Backups == nil || !s.Backups.GoogleConnected(ctx)) {
+		return errors.New("Google Drive must be authorized before it can be selected")
+	}
+	before, err := s.Repo.BackupSettings(ctx)
+	if err != nil {
+		return err
+	}
+	if err = s.Repo.SaveBackupSettings(ctx, value); err != nil {
+		return err
+	}
+	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "backup_settings_updated", "backup_settings", "default", correlation, before, value)
+}
+func (s *Service) ScheduleBackup() {
+	if s.Backups != nil {
+		s.Backups.Schedule()
+	}
+}
+func (s *Service) BeginGoogleBackupAuthorization(ctx context.Context, actor domain.User) (string, error) {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return "", err
+	}
+	if s.Backups == nil {
+		return "", errors.New("backup service is unavailable")
+	}
+	return s.Backups.BeginGoogleAuthorization()
+}
+func (s *Service) CompleteGoogleBackupAuthorization(ctx context.Context, state, code string) error {
+	if s.Backups == nil {
+		return errors.New("backup service is unavailable")
+	}
+	return s.Backups.CompleteGoogleAuthorization(ctx, state, code)
 }
 func hash(secret string) (string, error) {
 	salt := make([]byte, 16)

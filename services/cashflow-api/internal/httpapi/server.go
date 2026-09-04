@@ -88,6 +88,10 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/auth/recover", s.recover)
 	m.HandleFunc("POST /v1/auth/change-password", s.changePassword)
 	m.HandleFunc("GET /v1/mcp/settings", s.mcpSettings)
+	m.HandleFunc("GET /v1/backups/settings", s.backupSettings)
+	m.HandleFunc("PUT /v1/backups/settings", s.saveBackupSettings)
+	m.HandleFunc("POST /v1/backups/google/authorize", s.beginGoogleBackupAuthorization)
+	m.HandleFunc("GET /v1/backups/google/callback", s.completeGoogleBackupAuthorization)
 	m.HandleFunc("PUT /v1/mcp/settings", s.saveMCPSettings)
 	m.HandleFunc("GET /v1/mcp/keys", s.mcpAPIKeys)
 	m.HandleFunc("POST /v1/mcp/keys", s.createMCPAPIKey)
@@ -132,7 +136,16 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/imports/transactions", s.importTransactions)
 	m.HandleFunc("GET /v1/exports/transactions.csv", s.exportTransactions)
 	m.HandleFunc("GET /v1/exports/audit.csv", s.exportAudit)
-	return s.middleware(m)
+	return s.backupScheduling(s.middleware(m))
+}
+func (s *Server) backupScheduling(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writer := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(writer, r)
+		if (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete) && strings.HasPrefix(r.URL.Path, "/v1/") && writer.status >= 200 && writer.status < 300 && !strings.HasPrefix(r.URL.Path, "/v1/auth/") && !strings.HasPrefix(r.URL.Path, "/v1/backups/") {
+			s.App.ScheduleBackup()
+		}
+	})
 }
 
 type correlationKey struct{}
@@ -529,6 +542,54 @@ func (s *Server) saveMCPSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, body)
+}
+func (s *Server) backupSettings(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	value, e := s.App.BackupSettings(r.Context(), a)
+	if e != nil {
+		fail(w, e)
+		return
+	}
+	write(w, http.StatusOK, value)
+}
+func (s *Server) saveBackupSettings(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	var value domain.BackupSettings
+	if e := json.NewDecoder(r.Body).Decode(&value); e != nil {
+		fail(w, e)
+		return
+	}
+	if e := s.App.SaveBackupSettings(r.Context(), a, value, correlation(r.Context())); e != nil {
+		fail(w, e)
+		return
+	}
+	write(w, http.StatusOK, value)
+}
+func (s *Server) beginGoogleBackupAuthorization(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	url, err := s.App.BeginGoogleBackupAuthorization(r.Context(), a)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	write(w, http.StatusOK, map[string]string{"url": url})
+}
+func (s *Server) completeGoogleBackupAuthorization(w http.ResponseWriter, r *http.Request) {
+	if err := s.App.CompleteGoogleBackupAuthorization(r.Context(), r.URL.Query().Get("state"), r.URL.Query().Get("code")); err != nil {
+		http.Error(w, "No se pudo autorizar Google Drive: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, "<!doctype html><title>Google Drive autorizado</title><p>Google Drive fue autorizado. Podés cerrar esta ventana y volver a FLUXeando.</p>")
 }
 func (s *Server) mcpAPIKeys(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)

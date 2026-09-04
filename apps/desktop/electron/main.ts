@@ -215,6 +215,11 @@ ipcMain.handle('cashflow:reveal-database', () => {
   if (!fs.existsSync(storageConfig.dbPath)) throw new Error('The configured database file could not be found');
   shell.showItemInFolder(storageConfig.dbPath);
 });
+ipcMain.handle('cashflow:choose-backup-folder', async () => {
+  const options: Electron.OpenDialogOptions = { title: 'Elegir carpeta para copias de seguridad', properties: ['openDirectory', 'createDirectory'] };
+  const result = await (mainWindow ? dialog.showOpenDialog(mainWindow, options) : dialog.showOpenDialog(options));
+  return result.canceled ? undefined : result.filePaths[0];
+});
 ipcMain.handle('cashflow:choose-database', async (_event, input: { dbPath?: string }) => {
   const savedDatabasePath = storageConfig?.mode === 'local' ? storageConfig.dbPath : undefined;
   const options: Electron.OpenDialogOptions = { title: 'Seleccionar base de datos SQLite', defaultPath: input.dbPath || savedDatabasePath || defaultDatabasePath(), properties: ['openFile'], filters: [{ name: 'SQLite', extensions: ['db', 'sqlite', 'sqlite3'] }] };

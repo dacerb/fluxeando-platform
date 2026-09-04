@@ -226,7 +226,66 @@ CREATE INDEX mcp_api_keys_user_id ON mcp_api_keys(user_id);
 INSERT INTO mcp_settings(id,enabled,exposure_mode,updated_at) VALUES(1,0,'local',datetime('now'));
 INSERT INTO schema_migrations(version, applied_at) VALUES (9, datetime('now'));`)
 	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=10").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `CREATE TABLE backup_settings (id INTEGER PRIMARY KEY CHECK(id=1), provider TEXT NOT NULL DEFAULT '', filesystem_path TEXT NOT NULL DEFAULT '', google_folder_id TEXT NOT NULL DEFAULT '', last_backup_at TEXT NOT NULL DEFAULT '', last_error TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL);
+INSERT INTO backup_settings(id,updated_at) VALUES(1,datetime('now'));
+INSERT INTO schema_migrations(version, applied_at) VALUES (10, datetime('now'));`)
+	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=11").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `ALTER TABLE backup_settings ADD COLUMN filename_prefix TEXT NOT NULL DEFAULT 'fluxeando-backup';
+INSERT INTO schema_migrations(version, applied_at) VALUES (11, datetime('now'));`)
+	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=12").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `CREATE TABLE backup_google_credentials (id INTEGER PRIMARY KEY CHECK(id=1), refresh_token BLOB NOT NULL, updated_at TEXT NOT NULL);
+INSERT INTO schema_migrations(version, applied_at) VALUES (12, datetime('now'));`)
+	}
 	return err
+}
+func (r *Repository) BackupSettings(ctx context.Context) (domain.BackupSettings, error) {
+	var settings domain.BackupSettings
+	err := r.DB.QueryRowContext(ctx, "SELECT provider,filesystem_path,filename_prefix,google_folder_id,last_backup_at,last_error FROM backup_settings WHERE id=1").Scan(&settings.Provider, &settings.FilesystemPath, &settings.FilenamePrefix, &settings.GoogleFolderID, &settings.LastBackupAt, &settings.LastError)
+	return settings, err
+}
+func (r *Repository) SaveBackupSettings(ctx context.Context, settings domain.BackupSettings) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE backup_settings SET provider=?,filesystem_path=?,filename_prefix=?,google_folder_id=?,updated_at=? WHERE id=1", settings.Provider, settings.FilesystemPath, settings.FilenamePrefix, settings.GoogleFolderID, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+func (r *Repository) SaveBackupResult(ctx context.Context, at, lastError string) error {
+	_, err := r.DB.ExecContext(ctx, "UPDATE backup_settings SET last_backup_at=?,last_error=?,updated_at=? WHERE id=1", at, lastError, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+func (r *Repository) SaveGoogleBackupRefreshToken(ctx context.Context, encrypted []byte) error {
+	_, err := r.DB.ExecContext(ctx, "INSERT INTO backup_google_credentials(id,refresh_token,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET refresh_token=excluded.refresh_token,updated_at=excluded.updated_at", encrypted, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+func (r *Repository) GoogleBackupRefreshToken(ctx context.Context) ([]byte, bool, error) {
+	var encrypted []byte
+	err := r.DB.QueryRowContext(ctx, "SELECT refresh_token FROM backup_google_credentials WHERE id=1").Scan(&encrypted)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	return encrypted, err == nil, err
 }
 func (r *Repository) Initialized(ctx context.Context) (bool, error) {
 	var n int

@@ -58,7 +58,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer repo.Close()
-	app := application.New(repo)
+	backups := application.NewBackupManager(repo, os.Getenv("CASHFLOW_BACKUP_ROOT"), os.Getenv("CASHFLOW_GOOGLE_DRIVE_ACCESS_TOKEN"), os.Getenv("CASHFLOW_GOOGLE_OAUTH_CLIENT_ID"), os.Getenv("CASHFLOW_GOOGLE_OAUTH_CLIENT_SECRET"), os.Getenv("CASHFLOW_GOOGLE_OAUTH_REDIRECT_URL"), os.Getenv("CASHFLOW_BACKUP_ENCRYPTION_KEY"))
+	app := application.New(repo, backups)
 	server := httpapi.New(app, log)
 	log.Info("cashflow api started", "component", "api", "layer", "bootstrap", "operation", "start", "address", *addr)
 	if e := http.ListenAndServe(*addr, server.Handler()); e != nil {

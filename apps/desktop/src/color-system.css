@@ -130,112 +130,45 @@ body[data-accent='gold'][data-color-mode='dark'] {
   --m3-surface-container-lowest: #1A1A1A;
 }
 
-body[data-accent='neon'][data-color-mode='light'] {
-  --ui-accent: #EEFF22;
-  --ui-on-accent: #101010;
-  --ui-canvas: #F4F4F4;
-  --ui-surface: #FFFFFF;
-  --ui-surface-low: #D6D6D6;
-  --ui-surface-container: #FFFFFF;
-  --ui-surface-high: color-mix(in srgb, #F4F4F4 92%, #101010);
-  --ui-surface-highest: color-mix(in srgb, #F4F4F4 84%, #101010);
-  --ui-field: #FFFFFF;
-  --ui-text: #101010;
-  --ui-text-muted: color-mix(in srgb, #101010 58%, #F4F4F4);
-  --ui-text-disabled: color-mix(in srgb, #101010 38%, transparent);
-  --ui-border: color-mix(in srgb, #101010 12%, #F4F4F4);
-  --ui-border-strong: color-mix(in srgb, #101010 40%, #F4F4F4);
-  --ui-accent-container: color-mix(in srgb, #EEFF22 24%, #FFFFFF);
-  --ui-on-accent-container: #101010;
-  --ui-secondary: #101010;
-  --ui-secondary-container: #D6D6D6;
-  --ui-tertiary: #EEFF22;
-  --ui-sidebar: #D6D6D6;
-  --ui-on-sidebar: #101010;
-  --ui-menu-background: #D6D6D6;
-  --ui-selected: #EEFF22;
-  --m3-surface-container-lowest: #FFFFFF;
+/* Estado inactivo coherente para botones MUI y controles HTML en todas las paletas. */
+.app-shell .MuiButtonBase-root.Mui-disabled,
+.app-shell button[disabled] {
+  background: var(--m3-surface-container-high) !important;
+  color: var(--m3-on-surface-variant) !important;
+  border-color: var(--m3-outline-variant) !important;
+  opacity: .58 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
 }
 
-body[data-accent='neon'][data-color-mode='dark'] {
-  --ui-accent: #EEFF22;
-  --ui-on-accent: #101010;
-  --ui-canvas: #101010;
-  --ui-surface: #1B1B1B;
-  --ui-surface-low: #1B1B1B;
-  --ui-surface-container: #1B1B1B;
-  --ui-surface-high: #272727;
-  --ui-surface-highest: color-mix(in srgb, #272727 86%, #F4F4F4);
-  --ui-field: #1B1B1B;
-  --ui-text: #F4F4F4;
-  --ui-text-muted: color-mix(in srgb, #F4F4F4 60%, #101010);
-  --ui-text-disabled: color-mix(in srgb, #F4F4F4 36%, transparent);
-  --ui-border: color-mix(in srgb, #F4F4F4 12%, #101010);
-  --ui-border-strong: color-mix(in srgb, #F4F4F4 40%, #101010);
-  --ui-accent-container: color-mix(in srgb, #EEFF22 22%, #101010);
-  --ui-on-accent-container: #F4F4F4;
-  --ui-secondary: #F4F4F4;
-  --ui-secondary-container: #1B1B1B;
-  --ui-tertiary: #EEFF22;
-  --ui-sidebar: #181818;
-  --ui-on-sidebar: #F4F4F4;
-  --ui-menu-background: #181818;
-  --ui-selected: #EEFF22;
-  --m3-surface-container-lowest: #1B1B1B;
+/* Alta de usuarios: el generador vive bajo la contraseña sin estirar los otros campos. */
+.app-shell .app-content .user-create-form{
+  grid-template-columns:minmax(150px,1fr) minmax(220px,1.45fr) minmax(260px,1.35fr) minmax(150px,.8fr) auto!important;
+  align-items:start!important;
 }
-
-body[data-accent='rose'][data-color-mode='light'] {
-  --ui-accent: #FF4777;
-  --ui-on-accent: #182126;
-  --ui-canvas: #E5D4C8;
-  --ui-surface: #FFFFFF;
-  --ui-surface-low: #E5D4C8;
-  --ui-surface-container: #FFFFFF;
-  --ui-surface-high: color-mix(in srgb, #E5D4C8 90%, #36434A);
-  --ui-surface-highest: color-mix(in srgb, #E5D4C8 82%, #36434A);
-  --ui-field: #FFFFFF;
-  --ui-text: #36434A;
-  --ui-text-muted: color-mix(in srgb, #36434A 62%, #E5D4C8);
-  --ui-text-disabled: color-mix(in srgb, #36434A 40%, transparent);
-  --ui-border: color-mix(in srgb, #36434A 14%, #E5D4C8);
-  --ui-border-strong: color-mix(in srgb, #36434A 42%, #E5D4C8);
-  --ui-accent-container: color-mix(in srgb, #FF4777 18%, #FFFFFF);
-  --ui-on-accent-container: #36434A;
-  --ui-secondary: #36434A;
-  --ui-secondary-container: #E5D4C8;
-  --ui-tertiary: #FF4777;
-  --ui-sidebar: #36434A;
-  --ui-on-sidebar: #E5D4C8;
-  --ui-menu-background: #36434A;
-  --ui-selected: #FF4777;
-  --m3-surface-container-lowest: #FFFFFF;
+.app-shell .app-content .user-create-form>button{
+  grid-column:auto!important;
+  grid-row:auto!important;
+  min-height:56px!important;
+  align-self:start!important;
+  white-space:nowrap;
 }
-
-body[data-accent='rose'][data-color-mode='dark'] {
-  --ui-accent: #FF4777;
-  --ui-on-accent: #182126;
-  --ui-canvas: #141C20;
-  --ui-surface: #202A30;
-  --ui-surface-low: #202A30;
-  --ui-surface-container: #202A30;
-  --ui-surface-high: #2A363D;
-  --ui-surface-highest: #36434A;
-  --ui-field: #202A30;
-  --ui-text: #E5D4C8;
-  --ui-text-muted: color-mix(in srgb, #E5D4C8 62%, #141C20);
-  --ui-text-disabled: color-mix(in srgb, #E5D4C8 38%, transparent);
-  --ui-border: color-mix(in srgb, #E5D4C8 13%, #141C20);
-  --ui-border-strong: color-mix(in srgb, #E5D4C8 42%, #141C20);
-  --ui-accent-container: color-mix(in srgb, #FF4777 22%, #202A30);
-  --ui-on-accent-container: #E5D4C8;
-  --ui-secondary: #E5D4C8;
-  --ui-secondary-container: #2A363D;
-  --ui-tertiary: #FF4777;
-  --ui-sidebar: #202A30;
-  --ui-on-sidebar: #E5D4C8;
-  --ui-menu-background: #202A30;
-  --ui-selected: #FF4777;
-  --m3-surface-container-lowest: #202A30;
+.app-shell .app-content .user-create-form>input,
+.app-shell .app-content .user-create-form .user-role-select .MuiOutlinedInput-root,
+.app-shell .app-content .user-create-form .password-field>input{min-height:56px}
+@media(max-width:1400px){
+  .app-shell .app-content .user-create-form{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.2fr) minmax(130px,.8fr)!important}
+  .app-shell .app-content .user-create-form>button{grid-column:4!important;grid-row:2!important;justify-self:end}
+}
+@media(max-width:760px){
+  .app-shell .app-content .user-create-form{grid-template-columns:1fr 1fr!important}
+  .app-shell .app-content .user-create-form .password-field{grid-column:1/-1}
+  .app-shell .app-content .user-create-form>button{grid-column:2!important;grid-row:auto!important;justify-self:end}
+}
+@media(max-width:560px){
+  .app-shell .app-content .user-create-form{grid-template-columns:1fr!important}
+  .app-shell .app-content .user-create-form .password-field,.app-shell .app-content .user-create-form>button{grid-column:auto!important}
+  .app-shell .app-content .user-create-form>button{width:100%;justify-self:stretch}
 }
 
 .app-shell.dark { background: var(--ui-canvas) !important; }
@@ -337,17 +270,6 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-shell.dark .app-sidebar .tabs button.selected > * { position: relative; z-index: 1; }
 .app-sidebar .tabs button.selected svg,
 .app-shell.dark .app-sidebar .tabs button.selected svg { color: var(--ui-on-accent) !important; }
-
-body[data-accent='neon'][data-color-mode='light'] .app-sidebar .tabs button.selected {
-  color: #EEFF22 !important;
-}
-body[data-accent='neon'][data-color-mode='light'] .app-sidebar .tabs button.selected::before {
-  background: #101010;
-  box-shadow: none;
-}
-body[data-accent='neon'][data-color-mode='light'] .app-sidebar .tabs button.selected svg {
-  color: #EEFF22 !important;
-}
 
 .app-content > header { border-color: var(--ui-border) !important; }
 .eyebrow {
@@ -1731,14 +1653,16 @@ body .MuiSwitch-root:has(.MuiSwitch-input:focus-visible) {
   gap: 24px;
   min-height: 68px;
   margin: 22px 0 20px;
-  width: min(1280px, 100%);
+  /* Comparte el mismo ancho fluido que las tarjetas de cada pantalla. */
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
   margin-left: auto;
   margin-right: auto;
   padding: 12px 16px;
   border-top: 3px solid var(--ui-accent);
   background: color-mix(in srgb, var(--ui-surface-container) 72%, transparent);
 }
-body[data-runtime-platform='win32'] .app-content > .page-context-bar { width: 100%; max-width: none; margin-left: 0; margin-right: 0; }
 .page-context-bar > p { margin: 0; color: var(--ui-text-muted); font-size: .9rem; }
 .page-context-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 40px; }
 .page-context-actions:empty::after { content: ''; display: block; width: 1px; height: 1px; }
@@ -2272,4 +2196,78 @@ body .logger-switch .switch-state-code {
   body .app-shell .analytics-ranking:last-child .ranking-track i { background-color: #b24e2e !important; }
   body .app-shell .legend-net { background-color: #4f6358 !important; }
   body .app-shell :is(.trend-line, .daily-trend-line) polyline { stroke: #4f6358 !important; }
+}
+
+/* Píldoras: tipos, roles y estados comparten una misma geometría en todas las vistas. */
+.app-shell .MuiChip-root{
+  box-sizing:border-box!important;
+  height:28px!important;
+  border-radius:8px!important;
+  font-size:.82rem!important;
+  font-weight:700!important;
+  line-height:1!important;
+}
+.app-shell .MuiChip-root .MuiChip-label{
+  padding-inline:9px!important;
+  line-height:28px!important;
+}
+
+/* En las filas de cuentas y categorías los metadatos se leen como una única
+   unidad, en vez de dejar el estado aislado en una segunda línea. */
+.app-shell .material-list:not(.user-list) .MuiListItemText-root{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  column-gap:8px;
+  row-gap:4px;
+}
+.app-shell .material-list:not(.user-list) .MuiListItemText-primary,
+.app-shell .material-list:not(.user-list) .MuiListItemText-secondary{
+  display:inline-flex!important;
+  align-items:center;
+  width:auto;
+  margin:0!important;
+}
+.app-shell .material-list:not(.user-list) .MuiListItemText-secondary > .MuiStack-root{
+  display:inline-flex!important;
+  align-items:center;
+  gap:8px!important;
+}
+@media(max-width:700px){
+  .app-shell .material-list:not(.user-list) .MuiListItemText-root{align-items:flex-start;}
+  .app-shell .material-list:not(.user-list) .MuiListItemText-primary{flex-basis:100%;}
+}
+
+/* Gestión: las acciones masivas y sus aclaraciones responden a una misma
+   retícula. Evita que los textos auxiliares compriman botones o se separen
+   entre cuentas y categorías cuando la ventana se angosta. */
+.app-shell .management-bulk-controls{
+  align-items:flex-start!important;
+  gap:12px!important;
+  width:100%;
+}
+.app-shell .management-bulk-buttons{
+  flex:0 0 auto;
+  flex-wrap:wrap;
+  gap:8px!important;
+}
+.app-shell .management-bulk-buttons .MuiButton-root{
+  min-height:40px!important;
+  white-space:nowrap;
+}
+.app-shell .management-bulk-hints{
+  display:grid!important;
+  flex:1 1 280px;
+  gap:4px!important;
+  min-width:0;
+  padding:3px 0;
+}
+.app-shell .management-bulk-hints .MuiTypography-root{
+  margin:0;
+  line-height:1.4;
+}
+@media(max-width:700px){
+  .app-shell .management-bulk-buttons{width:100%;}
+  .app-shell .management-bulk-buttons .MuiButton-root{flex:1 1 180px;}
+  .app-shell .management-bulk-hints{width:100%;}
 }
