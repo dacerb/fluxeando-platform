@@ -239,6 +239,7 @@ button, input, select, textarea, .MuiTypography-root, .MuiButton-root, .MuiInput
 .app-shell.dark .app-sidebar .tabs button { color: var(--ui-on-sidebar) !important; }
 .sidebar-brand strong { color: var(--ui-accent) !important; }
 .sidebar-meta { color: color-mix(in srgb, var(--ui-on-sidebar) 64%, transparent) !important; }
+.sidebar-meta{display:grid;gap:4px;line-height:1.35}.sidebar-meta a{width:max-content;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit!important;text-decoration:none}.sidebar-meta a:hover,.sidebar-meta a:focus-visible{color:var(--ui-on-sidebar)!important;text-decoration:underline}
 .app-sidebar .tabs button, .app-shell.dark .app-sidebar .tabs button { background: transparent !important; }
 .app-sidebar .tabs button:hover, .app-shell.dark .app-sidebar .tabs button:hover {
   background: color-mix(in srgb, var(--ui-on-sidebar) 10%, transparent) !important;

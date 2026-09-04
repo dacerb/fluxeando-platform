@@ -11,8 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/cashflow/desktop/api/internal/domain"
 	"github.com/cashflow/desktop/api/internal/infrastructure/sqlite"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/oauth2"
 )
 
@@ -36,6 +39,15 @@ type BackupManager struct {
 	oauthConfig       *oauth2.Config
 	cipher            cipher.AEAD
 	states            map[string]time.Time
+}
+type backupSnapshot struct {
+	Format       string               `json:"format"`
+	CreatedAt    string               `json:"createdAt"`
+	Users        []sqlite.BackupUser  `json:"users"`
+	Accounts     []domain.Account     `json:"accounts"`
+	Categories   []domain.Category    `json:"categories"`
+	Transactions []domain.Transaction `json:"transactions"`
+	AuditEvents  []domain.AuditEvent  `json:"auditEvents"`
 }
 
 func NewBackupManager(repo *sqlite.Repository, root, googleToken, googleClientID, googleClientSecret, googleRedirectURL, encryptionKey string) *BackupManager {
@@ -113,8 +125,14 @@ func (m *BackupManager) Run(ctx context.Context) error {
 	switch settings.Provider {
 	case "filesystem":
 		err = m.writeFilesystem(settings.FilesystemPath, name, payload)
+		if err == nil {
+			err = m.rotateFilesystem(settings.FilesystemPath, prefix, settings.RetentionCount)
+		}
 	case "google_drive":
 		err = m.writeGoogleDrive(ctx, settings.GoogleFolderID, name, payload)
+		if err == nil {
+			err = m.rotateGoogleDrive(ctx, settings.GoogleFolderID, prefix, settings.RetentionCount)
+		}
 	default:
 		err = errors.New("unsupported backup provider")
 	}
@@ -139,7 +157,7 @@ func (m *BackupManager) snapshot(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	users, err := m.repo.ListUsers(ctx)
+	users, err := m.repo.BackupUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +165,56 @@ func (m *BackupManager) snapshot(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.MarshalIndent(map[string]any{"format": "fluxeando-backup/v1", "createdAt": time.Now().UTC().Format(time.RFC3339Nano), "accounts": accounts, "categories": categories, "transactions": transactions, "users": users, "auditEvents": audit}, "", "  ")
+	return json.MarshalIndent(backupSnapshot{Format: "fluxeando-backup/v2", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Accounts: accounts, Categories: categories, Transactions: transactions, Users: users, AuditEvents: audit}, "", "  ")
+}
+func (m *BackupManager) Restore(ctx context.Context, raw []byte, recoveryCode string) error {
+	var value backupSnapshot
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return errors.New("backup file is not valid JSON")
+	}
+	if value.Format != "fluxeando-backup/v2" {
+		return errors.New("this backup cannot be restored; create a new backup with the current version")
+	}
+	if strings.TrimSpace(recoveryCode) == "" {
+		return errors.New("backup recovery code is required")
+	}
+	allowed := false
+	for _, user := range value.Users {
+		if user.Role == string(domain.RoleAdministrator) && user.Active && verifyBackupRecovery(recoveryCode, user.RecoveryHash) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return errors.New("the recovery code does not match this backup")
+	}
+	if len(value.Users) == 0 {
+		return errors.New("backup has no users")
+	}
+	return m.repo.RestoreBackup(ctx, value.Users, value.Accounts, value.Categories, value.Transactions, value.AuditEvents)
+}
+func verifyBackupRecovery(code, encoded string) bool {
+	parts := strings.Split(encoded, ":")
+	if len(parts) != 2 {
+		return false
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[0])
+	if err != nil {
+		return false
+	}
+	want, err := base64.RawStdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	got := argon2.IDKey([]byte(code), salt, 3, 64*1024, 4, uint32(len(want)))
+	if len(got) != len(want) {
+		return false
+	}
+	var diff byte
+	for index := range got {
+		diff |= got[index] ^ want[index]
+	}
+	return diff == 0
 }
 func (m *BackupManager) writeFilesystem(target, name string, body []byte) error {
 	if target == "" {
@@ -166,6 +233,28 @@ func (m *BackupManager) writeFilesystem(target, name string, body []byte) error 
 		return err
 	}
 	return os.WriteFile(filepath.Join(target, name), body, 0600)
+}
+func (m *BackupManager) rotateFilesystem(target, prefix string, keep int) error {
+	if keep == 0 {
+		keep = 3
+	}
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		return err
+	}
+	files := make([]string, 0)
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && strings.HasPrefix(entry.Name(), prefix+"-") && strings.HasSuffix(entry.Name(), ".json") {
+			files = append(files, entry.Name())
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(files)))
+	for _, name := range files[keep:] {
+		if err := os.Remove(filepath.Join(target, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (m *BackupManager) writeGoogleDrive(ctx context.Context, folderID, name string, body []byte) error {
 	accessToken, err := m.googleAccessToken(ctx)
@@ -194,6 +283,62 @@ func (m *BackupManager) writeGoogleDrive(ctx context.Context, folderID, name str
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("Google Drive upload failed: %s", response.Status)
+	}
+	return nil
+}
+func (m *BackupManager) rotateGoogleDrive(ctx context.Context, folderID, prefix string, keep int) error {
+	if keep == 0 {
+		keep = 3
+	}
+	accessToken, err := m.googleAccessToken(ctx)
+	if err != nil {
+		return err
+	}
+	query := url.QueryEscape(fmt.Sprintf("'%s' in parents and trashed = false", folderID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/drive/v3/files?q="+query+"&orderBy=createdTime+desc&pageSize=100&fields=files(id,name)", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("Google Drive list failed: %s", response.Status)
+	}
+	var result struct {
+		Files []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"files"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		return err
+	}
+	count := 0
+	for _, file := range result.Files {
+		if !strings.HasPrefix(file.Name, prefix+"-") || !strings.HasSuffix(file.Name, ".json") {
+			continue
+		}
+		count++
+		if count <= keep {
+			continue
+		}
+		deleteReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, "https://www.googleapis.com/drive/v3/files/"+url.PathEscape(file.ID), nil)
+		if err != nil {
+			return err
+		}
+		deleteReq.Header.Set("Authorization", "Bearer "+accessToken)
+		deleted, err := http.DefaultClient.Do(deleteReq)
+		if err != nil {
+			return err
+		}
+		_ = deleted.Body.Close()
+		if deleted.StatusCode < 200 || deleted.StatusCode >= 300 {
+			return fmt.Errorf("Google Drive delete failed: %s", deleted.Status)
+		}
 	}
 	return nil
 }
@@ -237,6 +382,9 @@ func (m *BackupManager) decrypt(value []byte) (string, error) {
 	return string(decoded), err
 }
 func ValidateBackupSettings(value domain.BackupSettings) error {
+	if value.RetentionCount != 0 && (value.RetentionCount < 1 || value.RetentionCount > 100) {
+		return errors.New("backup retention must be between 1 and 100")
+	}
 	if value.Provider == "" {
 		return nil
 	}

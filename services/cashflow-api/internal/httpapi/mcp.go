@@ -20,17 +20,19 @@ type mcpIdentity struct {
 	clientAgent   string
 }
 type createTransactionInput struct {
-	AccountID   string `json:"accountId" jsonschema:"ID de la cuenta activa"`
-	CategoryID  string `json:"categoryId,omitempty" jsonschema:"ID opcional de la categoría"`
-	Direction   string `json:"direction" jsonschema:"Tipo de movimiento: income o expense"`
-	AmountMinor int64  `json:"amountMinor" jsonschema:"Monto en unidades menores"`
-	Currency    string `json:"currency" jsonschema:"Moneda ISO de tres letras"`
-	Description string `json:"description"`
-	OccurredOn  string `json:"occurredOn" jsonschema:"Fecha YYYY-MM-DD"`
+	AccountID    string `json:"accountId" jsonschema:"ID de la cuenta activa"`
+	CategoryID   string `json:"categoryId,omitempty" jsonschema:"ID opcional de una categoría existente"`
+	CategoryName string `json:"categoryName,omitempty" jsonschema:"Nombre opcional: se compara con las categorías existentes, pero no crea categorías automáticamente"`
+	Direction    string `json:"direction" jsonschema:"Tipo de movimiento: income o expense"`
+	AmountMinor  int64  `json:"amountMinor" jsonschema:"Monto en unidades menores"`
+	Currency     string `json:"currency" jsonschema:"Moneda ISO de tres letras"`
+	Description  string `json:"description"`
+	OccurredOn   string `json:"occurredOn" jsonschema:"Fecha YYYY-MM-DD"`
 }
 type createCategoryInput struct {
 	Name      string `json:"name" jsonschema:"Nombre de la categoría"`
 	Direction string `json:"direction" jsonschema:"Dirección: income, expense o both"`
+	Confirmed bool   `json:"confirmed" jsonschema:"Debe ser true sólo después de confirmar que no se reutilizará una categoría existente"`
 }
 
 func (s *Server) mcpHTTP() http.Handler {
@@ -113,10 +115,22 @@ func (s *Server) mcpServer(identity mcpIdentity) *mcp.Server {
 		}
 		return nil, map[string]any{"categories": values}, err
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_create_category", Description: "Crea una categoría. Requiere una clave MCP con permiso de escritura."}, func(ctx context.Context, _ *mcp.CallToolRequest, input createCategoryInput) (*mcp.CallToolResult, map[string]any, error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_create_category", Description: "Crea una categoría sólo después de que la persona confirmó que no desea reutilizar una existente. Antes usá cashflow_list_categories. Requiere una clave MCP con permiso de escritura."}, func(ctx context.Context, _ *mcp.CallToolRequest, input createCategoryInput) (*mcp.CallToolResult, map[string]any, error) {
 		if !strings.Contains(identity.key.Scopes, "write") {
 			err := errors.New("MCP key does not allow writing")
 			return nil, nil, s.recordMCPToolCall(ctx, identity, "cashflow_create_category", input, nil, err)
+		}
+		if !input.Confirmed {
+			categories, listErr := s.App.Repo.ListCategories(ctx)
+			result := map[string]any{"created": false, "confirmationRequired": true, "requestedCategory": input.Name, "existingCategories": categories}
+			if listErr != nil {
+				err := s.recordMCPToolCall(ctx, identity, "cashflow_create_category", input, result, listErr)
+				return nil, nil, err
+			}
+			if err := s.recordMCPToolCall(ctx, identity, "cashflow_create_category", input, result, nil); err != nil {
+				return nil, nil, err
+			}
+			return nil, result, nil
 		}
 		err := s.App.CreateCategory(ctx, identity.user, input.Name, input.Direction, "mcp:"+identity.key.ID)
 		result := map[string]any{"created": err == nil, "name": input.Name, "direction": input.Direction}
@@ -125,17 +139,76 @@ func (s *Server) mcpServer(identity mcpIdentity) *mcp.Server {
 		}
 		return nil, result, nil
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_create_transaction", Description: "Crea un movimiento. Esta acción queda auditada."}, func(ctx context.Context, _ *mcp.CallToolRequest, input createTransactionInput) (*mcp.CallToolResult, map[string]any, error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_create_transaction", Description: "Crea un movimiento auditado. Sin categoría usa General income o General expense según el tipo. Si llega categoryName, primero informa las categorías existentes: no crea una nueva sin confirmación explícita mediante cashflow_create_category."}, func(ctx context.Context, _ *mcp.CallToolRequest, input createTransactionInput) (*mcp.CallToolResult, map[string]any, error) {
 		if !strings.Contains(identity.key.Scopes, "write") {
 			err := errors.New("MCP key does not allow writing")
 			return nil, nil, s.recordMCPToolCall(ctx, identity, "cashflow_create_transaction", input, nil, err)
 		}
-		tx := domain.Transaction{AccountID: input.AccountID, CategoryID: input.CategoryID, Direction: input.Direction, AmountMinor: input.AmountMinor, Currency: input.Currency, Description: input.Description, OccurredOn: input.OccurredOn}
-		err := s.App.CreateTransaction(ctx, identity.user, tx, "mcp:"+identity.key.ID)
-		if err = s.recordMCPToolCall(ctx, identity, "cashflow_create_transaction", input, map[string]any{"transaction_id": tx.ID, "created": err == nil}, err); err != nil {
+		categoryID, resolution, err := s.resolveMCPTransactionCategory(ctx, input)
+		if err != nil {
+			if err = s.recordMCPToolCall(ctx, identity, "cashflow_create_transaction", input, resolution, err); err != nil {
+				return nil, nil, err
+			}
+			return nil, resolution, nil
+		}
+		if categoryID == "" {
+			result := map[string]any{"created": false, "category": resolution}
+			if err = s.recordMCPToolCall(ctx, identity, "cashflow_create_transaction", input, result, nil); err != nil {
+				return nil, nil, err
+			}
+			return nil, result, nil
+		}
+		tx := domain.Transaction{AccountID: input.AccountID, CategoryID: categoryID, Direction: input.Direction, AmountMinor: input.AmountMinor, Currency: input.Currency, Description: input.Description, OccurredOn: input.OccurredOn}
+		err = s.App.CreateTransaction(ctx, identity.user, tx, "mcp:"+identity.key.ID)
+		result := map[string]any{"transaction_id": tx.ID, "created": err == nil, "category": resolution}
+		if err = s.recordMCPToolCall(ctx, identity, "cashflow_create_transaction", input, result, err); err != nil {
 			return nil, nil, err
 		}
-		return nil, map[string]any{"created": err == nil}, err
+		return nil, result, err
 	})
 	return server
+}
+func (s *Server) resolveMCPTransactionCategory(ctx context.Context, input createTransactionInput) (string, map[string]any, error) {
+	if input.Direction != "income" && input.Direction != "expense" {
+		return "", nil, errors.New("direction must be income or expense")
+	}
+	categories, err := s.App.Repo.ListCategories(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	if input.CategoryID != "" {
+		for _, category := range categories {
+			if category.ID == input.CategoryID {
+				if category.Direction != "both" && category.Direction != input.Direction {
+					return "", nil, errors.New("category direction does not match transaction direction")
+				}
+				return category.ID, map[string]any{"id": category.ID, "name": category.Name, "reused": true}, nil
+			}
+		}
+		return "", nil, errors.New("categoryId does not match an active category")
+	}
+	name := strings.TrimSpace(input.CategoryName)
+	if name != "" {
+		for _, category := range categories {
+			if strings.EqualFold(category.Name, name) {
+				if category.Direction != "both" && category.Direction != input.Direction {
+					return "", nil, errors.New("existing category direction does not match transaction direction")
+				}
+				return category.ID, map[string]any{"id": category.ID, "name": category.Name, "reused": true}, nil
+			}
+		}
+		return "", map[string]any{"created": false, "confirmationRequired": true, "requestedCategory": name, "existingCategories": categories}, nil
+	}
+	defaultID := "seed-expense"
+	defaultName := "General expense"
+	if input.Direction == "income" {
+		defaultID = "seed-income"
+		defaultName = "General income"
+	}
+	for _, category := range categories {
+		if category.ID == defaultID {
+			return defaultID, map[string]any{"id": defaultID, "name": defaultName, "defaulted": true}, nil
+		}
+	}
+	return "", nil, errors.New("default category is unavailable")
 }

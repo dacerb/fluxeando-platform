@@ -16,6 +16,10 @@ type Repository struct {
 	DB    *sql.DB
 	mysql bool
 }
+type BackupUser struct {
+	ID, Email, DisplayName, PasswordHash, RecoveryHash, Role string
+	Active, MustChangePassword                               bool
+}
 
 // Validate checks that an existing SQLite file is readable and is either empty
 // or a database created by a compatible CashFlow version. It never migrates or
@@ -260,15 +264,26 @@ INSERT INTO schema_migrations(version, applied_at) VALUES (11, datetime('now'));
 		_, err = r.DB.ExecContext(ctx, `CREATE TABLE backup_google_credentials (id INTEGER PRIMARY KEY CHECK(id=1), refresh_token BLOB NOT NULL, updated_at TEXT NOT NULL);
 INSERT INTO schema_migrations(version, applied_at) VALUES (12, datetime('now'));`)
 	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=13").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `ALTER TABLE backup_settings ADD COLUMN retention_count INTEGER NOT NULL DEFAULT 3;
+INSERT INTO schema_migrations(version, applied_at) VALUES (13, datetime('now'));`)
+	}
 	return err
 }
 func (r *Repository) BackupSettings(ctx context.Context) (domain.BackupSettings, error) {
 	var settings domain.BackupSettings
-	err := r.DB.QueryRowContext(ctx, "SELECT provider,filesystem_path,filename_prefix,google_folder_id,last_backup_at,last_error FROM backup_settings WHERE id=1").Scan(&settings.Provider, &settings.FilesystemPath, &settings.FilenamePrefix, &settings.GoogleFolderID, &settings.LastBackupAt, &settings.LastError)
+	err := r.DB.QueryRowContext(ctx, "SELECT provider,filesystem_path,filename_prefix,retention_count,google_folder_id,last_backup_at,last_error FROM backup_settings WHERE id=1").Scan(&settings.Provider, &settings.FilesystemPath, &settings.FilenamePrefix, &settings.RetentionCount, &settings.GoogleFolderID, &settings.LastBackupAt, &settings.LastError)
 	return settings, err
 }
 func (r *Repository) SaveBackupSettings(ctx context.Context, settings domain.BackupSettings) error {
-	_, err := r.DB.ExecContext(ctx, "UPDATE backup_settings SET provider=?,filesystem_path=?,filename_prefix=?,google_folder_id=?,updated_at=? WHERE id=1", settings.Provider, settings.FilesystemPath, settings.FilenamePrefix, settings.GoogleFolderID, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err := r.DB.ExecContext(ctx, "UPDATE backup_settings SET provider=?,filesystem_path=?,filename_prefix=?,retention_count=?,google_folder_id=?,updated_at=? WHERE id=1", settings.Provider, settings.FilesystemPath, settings.FilenamePrefix, settings.RetentionCount, settings.GoogleFolderID, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 func (r *Repository) SaveBackupResult(ctx context.Context, at, lastError string) error {
@@ -395,6 +410,61 @@ func (r *Repository) ListUsers(ctx context.Context) ([]domain.User, error) {
 		out = append(out, u)
 	}
 	return out, rows.Err()
+}
+func (r *Repository) BackupUsers(ctx context.Context) ([]BackupUser, error) {
+	rows, err := r.DB.QueryContext(ctx, "SELECT id,email,display_name,password_hash,COALESCE(recovery_hash,''),role,active,must_change_password FROM users ORDER BY email")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	users := []BackupUser{}
+	for rows.Next() {
+		var user BackupUser
+		if err = rows.Scan(&user.ID, &user.Email, &user.DisplayName, &user.PasswordHash, &user.RecoveryHash, &user.Role, &user.Active, &user.MustChangePassword); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+func (r *Repository) RestoreBackup(ctx context.Context, users []BackupUser, accounts []domain.Account, categories []domain.Category, transactions []domain.Transaction, audit []domain.AuditEvent) error {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	fail := func(err error) error { _ = tx.Rollback(); return err }
+	for _, table := range []string{"remembered_sessions", "mcp_api_keys", "saved_filters", "deletion_requests", "transactions", "accounts", "categories", "audit_events", "users"} {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
+			return fail(err)
+		}
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, user := range users {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO users(id,email,display_name,password_hash,recovery_hash,role,active,must_change_password,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)", user.ID, user.Email, user.DisplayName, user.PasswordHash, null(user.RecoveryHash), user.Role, user.Active, user.MustChangePassword, now, now); err != nil {
+			return fail(err)
+		}
+	}
+	for _, account := range accounts {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO accounts(id,name,type,active,created_at,updated_at) VALUES(?,?,?,?,?,?)", account.ID, account.Name, account.Type, account.Active, now, now); err != nil {
+			return fail(err)
+		}
+	}
+	for _, category := range categories {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO categories(id,name,direction,active,created_at,updated_at) VALUES(?,?,?,?,?,?)", category.ID, category.Name, category.Direction, category.Active, now, now); err != nil {
+			return fail(err)
+		}
+	}
+	for _, movement := range transactions {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO transactions(id,account_id,category_id,direction,amount_minor,currency,description,occurred_on,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", movement.ID, movement.AccountID, null(movement.CategoryID), movement.Direction, movement.AmountMinor, movement.Currency, movement.Description, movement.OccurredOn, movement.Status, movement.CreatedBy, movement.CreatedAt, movement.UpdatedAt); err != nil {
+			return fail(err)
+		}
+	}
+	for _, event := range audit {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,correlation_id,before_json,after_json,created_at) VALUES(?,?,?,?,?,?,?,?,?)", event.ID, null(event.ActorID), event.Action, event.EntityType, event.EntityID, event.CorrelationID, null(event.Before), null(event.After), event.CreatedAt); err != nil {
+			return fail(err)
+		}
+	}
+	return tx.Commit()
 }
 func (r *Repository) User(ctx context.Context, id string) (domain.User, error) {
 	var u domain.User

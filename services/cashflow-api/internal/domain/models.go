@@ -63,6 +63,7 @@ type BackupSettings struct {
 	Provider        string `json:"provider"`
 	FilesystemPath  string `json:"filesystemPath,omitempty"`
 	FilenamePrefix  string `json:"filenamePrefix,omitempty"`
+	RetentionCount  int    `json:"retentionCount"`
 	GoogleFolderID  string `json:"googleFolderId,omitempty"`
 	GoogleConnected bool   `json:"googleConnected"`
 	LastBackupAt    string `json:"lastBackupAt,omitempty"`

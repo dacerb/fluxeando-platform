@@ -79,7 +79,7 @@ func TestMCPInitializeWithAuthenticatedKey(t *testing.T) {
 		body, _ := io.ReadAll(toolResponse.Body)
 		t.Fatalf("tool status = %d, body = %s", toolResponse.StatusCode, body)
 	}
-	categoryRequest, err := http.NewRequest(http.MethodPost, server.URL+"/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"cashflow_create_category","arguments":{"name":"MCP test category","direction":"expense"}}}`))
+	categoryRequest, err := http.NewRequest(http.MethodPost, server.URL+"/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"cashflow_create_category","arguments":{"name":"MCP test category","direction":"expense","confirmed":true}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}

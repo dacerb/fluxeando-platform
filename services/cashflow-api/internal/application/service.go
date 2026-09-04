@@ -53,6 +53,9 @@ func (s *Service) SaveBackupSettings(ctx context.Context, actor domain.User, val
 	if err := ValidateBackupSettings(value); err != nil {
 		return err
 	}
+	if value.RetentionCount == 0 {
+		value.RetentionCount = 3
+	}
 	if value.Provider == "google_drive" {
 		folderID, err := NormalizeGoogleFolderID(value.GoogleFolderID)
 		if err != nil {
@@ -91,6 +94,18 @@ func (s *Service) CompleteGoogleBackupAuthorization(ctx context.Context, state, 
 		return errors.New("backup service is unavailable")
 	}
 	return s.Backups.CompleteGoogleAuthorization(ctx, state, code)
+}
+func (s *Service) RestoreBackup(ctx context.Context, raw []byte, recoveryCode string) error {
+	if s.Backups == nil {
+		return errors.New("backup service is unavailable")
+	}
+	if err := s.Backups.Restore(ctx, raw, recoveryCode); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.sessions = map[string]domain.User{}
+	s.mu.Unlock()
+	return nil
 }
 func hash(secret string) (string, error) {
 	salt := make([]byte, 16)
@@ -692,7 +707,7 @@ func (s *Service) DeleteAccount(ctx context.Context, actor domain.User, id, repl
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "account_deleted", "account", id, correlation, before, nil)
 }
 func (s *Service) CreateCategory(ctx context.Context, actor domain.User, name, direction, correlation string) error {
-	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager, domain.RoleOperator); e != nil {
+	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
 		return e
 	}
 	name = strings.TrimSpace(name)

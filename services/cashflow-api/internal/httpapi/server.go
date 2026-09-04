@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/cashflow/desktop/api/internal/application"
 	"github.com/cashflow/desktop/api/internal/domain"
@@ -82,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /v1/storage/validate", s.validateStorage)
 	m.HandleFunc("POST /v1/storage/new", s.newStorage)
 	m.HandleFunc("POST /v1/storage/mysql", s.configureMySQL)
+	m.HandleFunc("POST /v1/backups/restore", s.restoreBackup)
 	m.HandleFunc("POST /v1/auth/login", s.login)
 	m.HandleFunc("GET /v1/auth/session", s.session)
 	m.HandleFunc("POST /v1/auth/logout", s.logout)
@@ -590,6 +592,21 @@ func (s *Server) completeGoogleBackupAuthorization(w http.ResponseWriter, r *htt
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = io.WriteString(w, "<!doctype html><title>Google Drive autorizado</title><p>Google Drive fue autorizado. Podés cerrar esta ventana y volver a FLUXeando.</p>")
+}
+func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
+	var value struct {
+		Backup       json.RawMessage `json:"backup"`
+		RecoveryCode string          `json:"recoveryCode"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 100<<20)).Decode(&value); err != nil {
+		fail(w, errors.New("invalid backup restore request"))
+		return
+	}
+	if err := s.App.RestoreBackup(r.Context(), value.Backup, value.RecoveryCode); err != nil {
+		fail(w, err)
+		return
+	}
+	write(w, http.StatusOK, map[string]bool{"restored": true})
 }
 func (s *Server) mcpAPIKeys(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)
