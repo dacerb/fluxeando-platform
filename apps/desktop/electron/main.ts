@@ -19,6 +19,8 @@ let resolveRendererReady: (() => void) | undefined;
 let resolvePortConflict: ((useAlternatePort: boolean) => void) | undefined;
 const rendererReady = new Promise<void>(resolve => { resolveRendererReady = resolve; });
 const defaultAPIPort = 8787;
+const repositoryURL = 'https://github.com/dacerb/fluxeando-platform';
+const isRepositoryURL = (value: string) => value === repositoryURL || value.startsWith(`${repositoryURL}/`);
 const defaultDatabasePath = () => path.join(app.getPath('userData'), 'cashflow.db');
 const newDefaultDatabasePath = () => {
   const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -182,6 +184,15 @@ function createWindow() {
   const win = new BrowserWindow({ width: 1200, height: 780, minWidth: 1024, minHeight: 720, show: true, icon: appIconPath(), webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false } });
   mainWindow = win;
   win.on('closed', () => { mainWindow = undefined; });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isRepositoryURL(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!isRepositoryURL(url)) return;
+    event.preventDefault();
+    void shell.openExternal(url);
+  });
   win.webContents.on('did-fail-load', (_, code, description) => console.error('Renderer failed to load', { code, description }));
   win.webContents.on('console-message', (_, level, message) => console.error('Renderer console message', { level, message }));
   if (process.env.CASHFLOW_DEBUG === '1') win.webContents.openDevTools({ mode: 'detach' });
