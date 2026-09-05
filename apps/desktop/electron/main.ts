@@ -15,6 +15,7 @@ type StorageConfig = LocalStorageConfig | MySQLStorageConfig;
 let storageConfig: StorageConfig | undefined;
 let backendError = '';
 let backendStarting = false;
+let quitting = false;
 let resolveRendererReady: (() => void) | undefined;
 let resolvePortConflict: ((useAlternatePort: boolean) => void) | undefined;
 const rendererReady = new Promise<void>(resolve => { resolveRendererReady = resolve; });
@@ -134,7 +135,7 @@ async function stopBackend() {
   backend = undefined;
   if (!running || running.exitCode !== null) return;
   await new Promise<void>(resolve => {
-    const timeout = setTimeout(resolve, 1_500);
+    const timeout = setTimeout(resolve, 5_000);
     running.once('exit', () => { clearTimeout(timeout); resolve(); });
     running.kill();
   });
@@ -278,6 +279,11 @@ ipcMain.handle('cashflow:configure-mysql', async (_event, input: { host: string;
   return { mode: 'mysql', host: next.host, port: next.port, database: next.database, username: next.username };
 });
 app.whenReady().then(async () => { app.dock?.setIcon(appIconPath()); storageConfig = loadStorageConfig(); rememberCleanupDatabase(storageConfig); backendStarting = Boolean(storageConfig); createWindow(); await rendererReady; try { if (storageConfig) await startBackend(); } catch (error) { backendError = error instanceof Error ? error.message : 'The local API did not start'; console.error('Unable to start local Go API', error); } finally { backendStarting = false; mainWindow?.webContents.reload(); } });
-app.on('before-quit', () => backend?.kill());
+app.on('before-quit', event => {
+  if (quitting || !backend || backend.exitCode !== null) return;
+  event.preventDefault();
+  quitting = true;
+  void stopBackend().finally(() => app.quit());
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => createWindow());

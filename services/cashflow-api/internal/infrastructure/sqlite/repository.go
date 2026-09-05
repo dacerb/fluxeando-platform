@@ -275,15 +275,28 @@ INSERT INTO schema_migrations(version, applied_at) VALUES (12, datetime('now'));
 		_, err = r.DB.ExecContext(ctx, `ALTER TABLE backup_settings ADD COLUMN retention_count INTEGER NOT NULL DEFAULT 3;
 INSERT INTO schema_migrations(version, applied_at) VALUES (13, datetime('now'));`)
 	}
+	if err != nil {
+		return err
+	}
+	err = r.DB.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations WHERE version=14").Scan(&applied)
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		_, err = r.DB.ExecContext(ctx, `ALTER TABLE backup_settings ADD COLUMN delay_seconds INTEGER NOT NULL DEFAULT 60;
+ALTER TABLE backup_settings ADD COLUMN backup_on_startup INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE backup_settings ADD COLUMN backup_on_shutdown INTEGER NOT NULL DEFAULT 1;
+INSERT INTO schema_migrations(version, applied_at) VALUES (14, datetime('now'));`)
+	}
 	return err
 }
 func (r *Repository) BackupSettings(ctx context.Context) (domain.BackupSettings, error) {
 	var settings domain.BackupSettings
-	err := r.DB.QueryRowContext(ctx, "SELECT provider,filesystem_path,filename_prefix,retention_count,google_folder_id,last_backup_at,last_error FROM backup_settings WHERE id=1").Scan(&settings.Provider, &settings.FilesystemPath, &settings.FilenamePrefix, &settings.RetentionCount, &settings.GoogleFolderID, &settings.LastBackupAt, &settings.LastError)
+	err := r.DB.QueryRowContext(ctx, "SELECT provider,filesystem_path,filename_prefix,retention_count,delay_seconds,backup_on_startup,backup_on_shutdown,google_folder_id,last_backup_at,last_error FROM backup_settings WHERE id=1").Scan(&settings.Provider, &settings.FilesystemPath, &settings.FilenamePrefix, &settings.RetentionCount, &settings.DelaySeconds, &settings.BackupOnStartup, &settings.BackupOnShutdown, &settings.GoogleFolderID, &settings.LastBackupAt, &settings.LastError)
 	return settings, err
 }
 func (r *Repository) SaveBackupSettings(ctx context.Context, settings domain.BackupSettings) error {
-	_, err := r.DB.ExecContext(ctx, "UPDATE backup_settings SET provider=?,filesystem_path=?,filename_prefix=?,retention_count=?,google_folder_id=?,updated_at=? WHERE id=1", settings.Provider, settings.FilesystemPath, settings.FilenamePrefix, settings.RetentionCount, settings.GoogleFolderID, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err := r.DB.ExecContext(ctx, "UPDATE backup_settings SET provider=?,filesystem_path=?,filename_prefix=?,retention_count=?,delay_seconds=?,backup_on_startup=?,backup_on_shutdown=?,google_folder_id=?,updated_at=? WHERE id=1", settings.Provider, settings.FilesystemPath, settings.FilenamePrefix, settings.RetentionCount, settings.DelaySeconds, settings.BackupOnStartup, settings.BackupOnShutdown, settings.GoogleFolderID, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 func (r *Repository) SaveBackupResult(ctx context.Context, at, lastError string) error {

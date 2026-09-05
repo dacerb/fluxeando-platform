@@ -60,14 +60,17 @@ type MCPSettings struct {
 	ExposureMode string `json:"exposureMode"`
 }
 type BackupSettings struct {
-	Provider        string `json:"provider"`
-	FilesystemPath  string `json:"filesystemPath,omitempty"`
-	FilenamePrefix  string `json:"filenamePrefix,omitempty"`
-	RetentionCount  int    `json:"retentionCount"`
-	GoogleFolderID  string `json:"googleFolderId,omitempty"`
-	GoogleConnected bool   `json:"googleConnected"`
-	LastBackupAt    string `json:"lastBackupAt,omitempty"`
-	LastError       string `json:"lastError,omitempty"`
+	Provider         string `json:"provider"`
+	FilesystemPath   string `json:"filesystemPath,omitempty"`
+	FilenamePrefix   string `json:"filenamePrefix,omitempty"`
+	RetentionCount   int    `json:"retentionCount"`
+	DelaySeconds     int    `json:"delaySeconds"`
+	BackupOnStartup  bool   `json:"backupOnStartup"`
+	BackupOnShutdown bool   `json:"backupOnShutdown"`
+	GoogleFolderID   string `json:"googleFolderId,omitempty"`
+	GoogleConnected  bool   `json:"googleConnected"`
+	LastBackupAt     string `json:"lastBackupAt,omitempty"`
+	LastError        string `json:"lastError,omitempty"`
 }
 type MCPAPIKey struct {
 	ID         string `json:"id"`

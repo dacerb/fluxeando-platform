@@ -56,6 +56,9 @@ func (s *Service) SaveBackupSettings(ctx context.Context, actor domain.User, val
 	if value.RetentionCount == 0 {
 		value.RetentionCount = 3
 	}
+	if value.DelaySeconds == 0 {
+		value.DelaySeconds = int(MinBackupDelay.Seconds())
+	}
 	if value.Provider == "google_drive" {
 		folderID, err := NormalizeGoogleFolderID(value.GoogleFolderID)
 		if err != nil {

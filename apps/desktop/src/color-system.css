@@ -2349,3 +2349,11 @@ body .logger-switch .switch-state-code {
     text-indent:0!important;
   }
 }
+
+/* Los switches de configuración comunican el estado aun sin leer su etiqueta. */
+.settings-section-content > .MuiFormControlLabel-root .MuiSwitch-switchBase:not(.Mui-checked) .MuiSwitch-thumb {
+  background: #b8b8b8 !important;
+}
+.settings-section-content > .MuiFormControlLabel-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background: #fff !important;
+}

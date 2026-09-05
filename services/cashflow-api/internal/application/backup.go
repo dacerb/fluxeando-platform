@@ -26,16 +26,16 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const BackupDebounce = 10 * time.Second
+const MinBackupDelay = 60 * time.Second
 
 // BackupManager owns the single delayed task for this process. Scheduling a
 // new change always replaces the previous timer, so a burst creates one file.
 type BackupManager struct {
 	repo              *sqlite.Repository
 	mu                sync.Mutex
+	runMu             sync.Mutex
 	timer             *time.Timer
 	root, googleToken string
-	delay             time.Duration
 	oauthConfig       *oauth2.Config
 	cipher            cipher.AEAD
 	states            map[string]time.Time
@@ -51,7 +51,7 @@ type backupSnapshot struct {
 }
 
 func NewBackupManager(repo *sqlite.Repository, root, googleToken, googleClientID, googleClientSecret, googleRedirectURL, encryptionKey string) *BackupManager {
-	manager := &BackupManager{repo: repo, root: root, googleToken: googleToken, delay: BackupDebounce, states: map[string]time.Time{}}
+	manager := &BackupManager{repo: repo, root: root, googleToken: googleToken, states: map[string]time.Time{}}
 	if googleClientID != "" && googleClientSecret != "" && googleRedirectURL != "" {
 		manager.oauthConfig = &oauth2.Config{ClientID: googleClientID, ClientSecret: googleClientSecret, RedirectURL: googleRedirectURL, Endpoint: oauth2.Endpoint{AuthURL: "https://accounts.google.com/o/oauth2/v2/auth", TokenURL: "https://oauth2.googleapis.com/token"}, Scopes: []string{"https://www.googleapis.com/auth/drive.file"}}
 		if raw, err := base64.RawStdEncoding.DecodeString(encryptionKey); err == nil && len(raw) == 32 {
@@ -100,19 +100,44 @@ func (m *BackupManager) GoogleConnected(ctx context.Context) bool {
 	return err == nil && ok && len(encrypted) > 0 && m.cipher != nil
 }
 func (m *BackupManager) Schedule() {
+	settings, err := m.repo.BackupSettings(context.Background())
+	if err != nil || settings.Provider == "" {
+		return
+	}
+	delay := time.Duration(settings.DelaySeconds) * time.Second
+	if delay < MinBackupDelay {
+		delay = MinBackupDelay
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.timer != nil {
 		m.timer.Stop()
 	}
-	m.timer = time.AfterFunc(m.delay, func() { _ = m.Run(context.Background()) })
+	m.timer = time.AfterFunc(delay, func() { _ = m.Run(context.Background()) })
+}
+func (m *BackupManager) RunOnStartup(ctx context.Context) error {
+	return m.runWhen(ctx, func(settings domain.BackupSettings) bool { return settings.BackupOnStartup })
+}
+func (m *BackupManager) RunOnShutdown(ctx context.Context) error {
+	return m.runWhen(ctx, func(settings domain.BackupSettings) bool { return settings.BackupOnShutdown })
 }
 func (m *BackupManager) Run(ctx context.Context) error {
+	return m.runWhen(ctx, func(domain.BackupSettings) bool { return true })
+}
+func (m *BackupManager) runWhen(ctx context.Context, enabled func(domain.BackupSettings) bool) (err error) {
+	m.runMu.Lock()
+	defer m.runMu.Unlock()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("backup failed unexpectedly: %v", recovered)
+			_ = m.repo.SaveBackupResult(context.Background(), "", err.Error())
+		}
+	}()
 	settings, err := m.repo.BackupSettings(ctx)
 	if err != nil {
 		return err
 	}
-	if settings.Provider == "" {
+	if settings.Provider == "" || !enabled(settings) {
 		return nil
 	}
 	payload, err := m.snapshot(ctx)
@@ -232,7 +257,24 @@ func (m *BackupManager) writeFilesystem(target, name string, body []byte) error 
 	if err := os.MkdirAll(target, 0700); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(target, name), body, 0600)
+	temporary, err := os.CreateTemp(target, "."+name+"-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if err := temporary.Chmod(0600); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if _, err := temporary.Write(body); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, filepath.Join(target, name))
 }
 func (m *BackupManager) rotateFilesystem(target, prefix string, keep int) error {
 	if keep == 0 {
@@ -249,6 +291,9 @@ func (m *BackupManager) rotateFilesystem(target, prefix string, keep int) error 
 		}
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(files)))
+	if len(files) <= keep {
+		return nil
+	}
 	for _, name := range files[keep:] {
 		if err := os.Remove(filepath.Join(target, name)); err != nil {
 			return err
@@ -384,6 +429,9 @@ func (m *BackupManager) decrypt(value []byte) (string, error) {
 func ValidateBackupSettings(value domain.BackupSettings) error {
 	if value.RetentionCount != 0 && (value.RetentionCount < 1 || value.RetentionCount > 100) {
 		return errors.New("backup retention must be between 1 and 100")
+	}
+	if value.DelaySeconds != 0 && (value.DelaySeconds < int(MinBackupDelay.Seconds()) || value.DelaySeconds > 86400) {
+		return errors.New("backup delay must be between 60 seconds and 24 hours")
 	}
 	if value.Provider == "" {
 		return nil

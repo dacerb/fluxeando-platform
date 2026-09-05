@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/cashflow/desktop/api/internal/application"
 	"github.com/cashflow/desktop/api/internal/httpapi"
@@ -9,7 +10,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 )
 
 func main() {
@@ -60,9 +64,28 @@ func main() {
 	defer repo.Close()
 	backups := application.NewBackupManager(repo, os.Getenv("CASHFLOW_BACKUP_ROOT"), os.Getenv("CASHFLOW_GOOGLE_DRIVE_ACCESS_TOKEN"), os.Getenv("CASHFLOW_GOOGLE_OAUTH_CLIENT_ID"), os.Getenv("CASHFLOW_GOOGLE_OAUTH_CLIENT_SECRET"), os.Getenv("CASHFLOW_GOOGLE_OAUTH_REDIRECT_URL"), os.Getenv("CASHFLOW_BACKUP_ENCRYPTION_KEY"))
 	app := application.New(repo, backups)
-	server := httpapi.New(app, log)
+	server := &http.Server{Addr: *addr, Handler: httpapi.New(app, log).Handler()}
 	log.Info("cashflow api started", "component", "api", "layer", "bootstrap", "operation", "start", "address", *addr)
-	if e := http.ListenAndServe(*addr, server.Handler()); e != nil {
+	go func() {
+		if err := backups.RunOnStartup(context.Background()); err != nil {
+			log.Error("startup backup failed", "component", "backup", "operation", "startup", "error", err.Error())
+		}
+	}()
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signals)
+	go func() {
+		<-signals
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := backups.RunOnShutdown(ctx); err != nil {
+			log.Error("shutdown backup failed", "component", "backup", "operation", "shutdown", "error", err.Error())
+		}
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error("api shutdown failed", "component", "api", "layer", "bootstrap", "error", err.Error())
+		}
+	}()
+	if e := server.ListenAndServe(); e != nil && e != http.ErrServerClosed {
 		log.Error("api stopped", "level", "critical", "component", "api", "layer", "bootstrap", "error", e.Error())
 	}
 }
