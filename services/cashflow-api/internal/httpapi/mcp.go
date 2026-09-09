@@ -34,6 +34,16 @@ type createCategoryInput struct {
 	Direction string `json:"direction" jsonschema:"Dirección: income, expense o both"`
 	Confirmed bool   `json:"confirmed" jsonschema:"Debe ser true sólo después de confirmar que no se reutilizará una categoría existente"`
 }
+type listTransactionsInput struct {
+	From          string `json:"from,omitempty" jsonschema:"Fecha inicial opcional YYYY-MM-DD"`
+	To            string `json:"to,omitempty" jsonschema:"Fecha final opcional YYYY-MM-DD"`
+	IncludeVoided bool   `json:"includeVoided,omitempty" jsonschema:"Incluye movimientos anulados cuando es true"`
+}
+type voidTransactionInput struct {
+	TransactionID string `json:"transactionId" jsonschema:"ID del movimiento a anular"`
+	Reason        string `json:"reason" jsonschema:"Motivo de la anulación"`
+	Confirmed     bool   `json:"confirmed" jsonschema:"Debe ser true sólo después de que la persona confirmó que desea enviar la solicitud de anulación"`
+}
 
 func (s *Server) mcpHTTP() http.Handler {
 	s.mcpOnce.Do(func() {
@@ -115,6 +125,27 @@ func (s *Server) mcpServer(identity mcpIdentity) *mcp.Server {
 		}
 		return nil, map[string]any{"categories": values}, err
 	})
+	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_list_transactions", Description: "Lista movimientos para revisar ingresos, egresos y posibles duplicados. Por defecto excluye los anulados."}, func(ctx context.Context, _ *mcp.CallToolRequest, input listTransactionsInput) (*mcp.CallToolResult, map[string]any, error) {
+		if !strings.Contains(identity.key.Scopes, "read") {
+			err := errors.New("MCP key does not allow reading")
+			return nil, nil, s.recordMCPToolCall(ctx, identity, "cashflow_list_transactions", input, nil, err)
+		}
+		values, err := s.App.Repo.ListTransactions(ctx, input.From, input.To)
+		if err == nil && !input.IncludeVoided {
+			active := values[:0]
+			for _, value := range values {
+				if value.Status == string(domain.TransactionActive) {
+					active = append(active, value)
+				}
+			}
+			values = active
+		}
+		result := map[string]any{"transactions": values, "count": len(values)}
+		if err = s.recordMCPToolCall(ctx, identity, "cashflow_list_transactions", input, result, err); err != nil {
+			return nil, nil, err
+		}
+		return nil, result, nil
+	})
 	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_create_category", Description: "Crea una categoría sólo después de que la persona confirmó que no desea reutilizar una existente. Antes usá cashflow_list_categories. Requiere una clave MCP con permiso de escritura."}, func(ctx context.Context, _ *mcp.CallToolRequest, input createCategoryInput) (*mcp.CallToolResult, map[string]any, error) {
 		if !strings.Contains(identity.key.Scopes, "write") {
 			err := errors.New("MCP key does not allow writing")
@@ -165,6 +196,25 @@ func (s *Server) mcpServer(identity mcpIdentity) *mcp.Server {
 			return nil, nil, err
 		}
 		return nil, result, err
+	})
+	mcp.AddTool(server, &mcp.Tool{Name: "cashflow_void_transaction", Description: "Crea una solicitud de anulación para un movimiento confirmado como incorrecto o duplicado. No anula directamente: requiere la aprobación posterior de un administrador. Primero usar cashflow_list_transactions para identificarlo."}, func(ctx context.Context, _ *mcp.CallToolRequest, input voidTransactionInput) (*mcp.CallToolResult, map[string]any, error) {
+		if !strings.Contains(identity.key.Scopes, "write") {
+			err := errors.New("MCP key does not allow writing")
+			return nil, nil, s.recordMCPToolCall(ctx, identity, "cashflow_void_transaction", input, nil, err)
+		}
+		if !input.Confirmed {
+			result := map[string]any{"requested": false, "confirmationRequired": true, "transactionId": input.TransactionID}
+			if err := s.recordMCPToolCall(ctx, identity, "cashflow_void_transaction", input, result, nil); err != nil {
+				return nil, nil, err
+			}
+			return nil, result, nil
+		}
+		requestID, err := s.App.RequestMCPTransactionVoid(ctx, identity.user, input.TransactionID, input.Reason, "mcp:"+identity.key.ID)
+		result := map[string]any{"requested": err == nil, "approvalRequired": true, "requestId": requestID, "transactionId": input.TransactionID}
+		if err = s.recordMCPToolCall(ctx, identity, "cashflow_void_transaction", input, result, err); err != nil {
+			return nil, nil, err
+		}
+		return nil, result, nil
 	})
 	return server
 }

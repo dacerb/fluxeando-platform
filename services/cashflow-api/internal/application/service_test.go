@@ -48,6 +48,62 @@ func TestOnboardingLoginTransactionAndAudit(t *testing.T) {
 	}
 }
 
+func TestMCPVoidRequestRequiresAdministratorApproval(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "cashflow.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer repo.Close()
+	app := application.New(repo)
+	ctx := context.Background()
+	if _, err = app.Initialize(ctx, "admin@example.com", "Admin", "SecureAdmin123", "mcp-void"); err != nil {
+		t.Fatal(err)
+	}
+	_, admin, err := app.Login(ctx, "admin@example.com", "SecureAdmin123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = app.CreateUser(ctx, admin, "manager@example.com", "Manager", "AnotherSecure123", "manager", "mcp-void"); err != nil {
+		t.Fatal(err)
+	}
+	_, manager, err := app.Login(ctx, "manager@example.com", "AnotherSecure123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = app.CreateAccount(ctx, admin, "Caja", "cash", "mcp-void"); err != nil {
+		t.Fatal(err)
+	}
+	accounts, err := repo.ListAccounts(ctx)
+	if err != nil || len(accounts) != 1 {
+		t.Fatalf("accounts = %#v, err = %v", accounts, err)
+	}
+	if err = app.CreateTransaction(ctx, admin, domain.Transaction{AccountID: accounts[0].ID, Direction: "expense", AmountMinor: 1200, Currency: "ARS", Description: "Duplicado", OccurredOn: "2026-09-08"}, "mcp-void"); err != nil {
+		t.Fatal(err)
+	}
+	transactions, err := repo.ListTransactions(ctx, "", "")
+	if err != nil || len(transactions) != 1 {
+		t.Fatalf("transactions = %#v, err = %v", transactions, err)
+	}
+	requestID, err := app.RequestMCPTransactionVoid(ctx, manager, transactions[0].ID, "Movimiento duplicado", "mcp:key")
+	if err != nil || requestID == "" {
+		t.Fatalf("request = %q, err = %v", requestID, err)
+	}
+	request, err := repo.DeletionRequest(ctx, requestID)
+	if err != nil || request.Status != "pending" || request.EntityType != "mcp_transaction_void" {
+		t.Fatalf("request = %#v, err = %v", request, err)
+	}
+	if err = app.ResolveDeletionRequest(ctx, manager, requestID, "approved", "mcp-void"); err == nil {
+		t.Fatal("a manager must not approve an MCP void request")
+	}
+	if err = app.ResolveDeletionRequest(ctx, admin, requestID, "approved", "mcp-void"); err != nil {
+		t.Fatal(err)
+	}
+	transactions, err = repo.ListTransactions(ctx, "", "")
+	if err != nil || transactions[0].Status != string(domain.TransactionVoided) {
+		t.Fatalf("transactions = %#v, err = %v", transactions, err)
+	}
+}
+
 func TestInitialAdministratorValidatesEmailNameAndAlphanumericPassword(t *testing.T) {
 	tests := []struct{ email, name, password string }{
 		{"not-an-email", "Admin", "SecureAdmin123"},

@@ -904,29 +904,49 @@ func (s *Service) VoidTransaction(ctx context.Context, actor domain.User, id, re
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_voided", "transaction", id, correlation, map[string]string{"status": "active"}, map[string]string{"status": "voided"})
 }
 func (s *Service) RequestTransactionVoid(ctx context.Context, actor domain.User, id, reason, correlation string) error {
+	_, err := s.requestTransactionVoid(ctx, actor, id, reason, correlation, "transaction", true)
+	return err
+}
+
+// RequestMCPTransactionVoid never voids a transaction directly. An MCP agent
+// can only create a pending request, which an administrator must approve.
+func (s *Service) RequestMCPTransactionVoid(ctx context.Context, actor domain.User, id, reason, correlation string) (string, error) {
+	return s.requestTransactionVoid(ctx, actor, id, reason, correlation, "mcp_transaction_void", actor.Role == string(domain.RoleOperator))
+}
+
+func (s *Service) requestTransactionVoid(ctx context.Context, actor domain.User, id, reason, correlation, entityType string, ownOnly bool) (string, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		return errors.New("a deletion request reason is required")
+		return "", errors.New("a deletion request reason is required")
 	}
-	items, err := s.Repo.ListTransactionsByCreator(ctx, "", "", actor.ID)
+	if err := s.Require(actor, domain.RoleAdministrator, domain.RoleManager, domain.RoleOperator); err != nil {
+		return "", err
+	}
+	items, err := s.Repo.ListTransactions(ctx, "", "")
 	if err != nil {
-		return err
+		return "", err
 	}
 	found := false
 	for _, item := range items {
-		if item.ID == id && item.Status == string(domain.TransactionActive) {
+		if item.ID == id && item.Status == string(domain.TransactionActive) && (!ownOnly || item.CreatedBy == actor.ID) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return errors.New("you can only request voiding your active movements")
+		if ownOnly {
+			return "", errors.New("you can only request voiding your active movements")
+		}
+		return "", errors.New("transaction is not active or does not exist")
 	}
 	requestID := uuid.NewString()
-	if err = s.Repo.CreateDeletionRequest(ctx, requestID, "transaction", id, actor.ID, actor.DisplayName, reason); err != nil {
-		return err
+	if err = s.Repo.CreateDeletionRequest(ctx, requestID, entityType, id, actor.ID, actor.DisplayName, reason); err != nil {
+		return "", err
 	}
-	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_void_requested", "deletion_request", requestID, correlation, nil, map[string]string{"transaction_id": id, "reason": reason})
+	if err = s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_void_requested", "deletion_request", requestID, correlation, nil, map[string]string{"transaction_id": id, "reason": reason, "source": entityType}); err != nil {
+		return "", err
+	}
+	return requestID, nil
 }
 func (s *Service) CancelDeletionRequest(ctx context.Context, actor domain.User, id, correlation string) error {
 	request, err := s.Repo.DeletionRequest(ctx, id)
@@ -945,9 +965,6 @@ func (s *Service) CancelDeletionRequest(ctx context.Context, actor domain.User, 
 	return s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "deletion_request_cancelled", "deletion_request", id, correlation, request, map[string]string{"status": "cancelled"})
 }
 func (s *Service) ResolveDeletionRequest(ctx context.Context, actor domain.User, id, decision, correlation string) error {
-	if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
-		return e
-	}
 	if decision != "approved" && decision != "rejected" {
 		return errors.New("invalid deletion request decision")
 	}
@@ -955,10 +972,17 @@ func (s *Service) ResolveDeletionRequest(ctx context.Context, actor domain.User,
 	if err != nil {
 		return err
 	}
+	if request.EntityType == "mcp_transaction_void" {
+		if e := s.Require(actor, domain.RoleAdministrator); e != nil {
+			return e
+		}
+	} else if e := s.Require(actor, domain.RoleAdministrator, domain.RoleManager); e != nil {
+		return e
+	}
 	if request.Status != "pending" {
 		return errors.New("deletion request is not pending")
 	}
-	if decision == "approved" && request.EntityType == "transaction" {
+	if decision == "approved" && (request.EntityType == "transaction" || request.EntityType == "mcp_transaction_void") {
 		if err = s.Repo.VoidTransaction(ctx, request.EntityID); err != nil {
 			return err
 		}
