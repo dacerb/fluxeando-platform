@@ -20,6 +20,12 @@ type BackupUser struct {
 	ID, Email, DisplayName, PasswordHash, RecoveryHash, Role string
 	Active, MustChangePassword                               bool
 }
+type TransactionExport struct {
+	domain.Transaction
+	CreatedByName      string
+	LastModifiedByName string
+	LastModifiedAt     string
+}
 
 // Validate checks that an existing SQLite file is readable and is either empty
 // or a database created by a compatible CashFlow version. It never migrates or
@@ -720,6 +726,29 @@ func (r *Repository) CreateTransaction(ctx context.Context, t domain.Transaction
 }
 func (r *Repository) ListTransactions(ctx context.Context, from, to string) ([]domain.Transaction, error) {
 	return r.listTransactions(ctx, from, to, "")
+}
+func (r *Repository) ListTransactionExports(ctx context.Context) ([]TransactionExport, error) {
+	rows, err := r.DB.QueryContext(ctx, `SELECT t.id,t.account_id,COALESCE(a.name,''),COALESCE(t.category_id,''),COALESCE(c.name,''),t.direction,t.amount_minor,t.currency,t.description,t.occurred_on,t.status,t.created_by,t.created_at,t.updated_at,
+		COALESCE(creator.display_name,t.created_by),COALESCE(last_change.actor_name,''),COALESCE(last_change.created_at,'')
+		FROM transactions t
+		LEFT JOIN accounts a ON a.id=t.account_id
+		LEFT JOIN categories c ON c.id=t.category_id
+		LEFT JOIN users creator ON creator.id=t.created_by
+		LEFT JOIN audit_events last_change ON last_change.id=(SELECT event.id FROM audit_events event WHERE event.entity_type='transaction' AND event.entity_id=t.id AND event.action IN ('transaction_updated','transaction_voided') ORDER BY event.created_at DESC,event.id DESC LIMIT 1)
+		ORDER BY t.occurred_on DESC,t.created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]TransactionExport, 0)
+	for rows.Next() {
+		var item TransactionExport
+		if err = rows.Scan(&item.ID, &item.AccountID, &item.AccountName, &item.CategoryID, &item.CategoryName, &item.Direction, &item.AmountMinor, &item.Currency, &item.Description, &item.OccurredOn, &item.Status, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt, &item.CreatedByName, &item.LastModifiedByName, &item.LastModifiedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 func (r *Repository) ListTransactionsByCreator(ctx context.Context, from, to, creator string) ([]domain.Transaction, error) {
 	return r.listTransactions(ctx, from, to, creator)

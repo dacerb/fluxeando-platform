@@ -92,6 +92,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /v1/mcp/settings", s.mcpSettings)
 	m.HandleFunc("GET /v1/backups/settings", s.backupSettings)
 	m.HandleFunc("PUT /v1/backups/settings", s.saveBackupSettings)
+	m.HandleFunc("POST /v1/backups/lifecycle/{phase}", s.runBackupLifecycle)
 	m.HandleFunc("POST /v1/backups/google/authorize", s.beginGoogleBackupAuthorization)
 	m.HandleFunc("GET /v1/backups/google/callback", s.completeGoogleBackupAuthorization)
 	m.HandleFunc("PUT /v1/mcp/settings", s.saveMCPSettings)
@@ -572,6 +573,19 @@ func (s *Server) saveBackupSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, value)
+}
+func (s *Server) runBackupLifecycle(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.actor(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if e := s.App.RunLifecycleBackup(ctx, a, r.PathValue("phase")); e != nil {
+		fail(w, e)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 func (s *Server) beginGoogleBackupAuthorization(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.actor(w, r)
@@ -1263,7 +1277,7 @@ func (s *Server) exportTransactions(w http.ResponseWriter, r *http.Request) {
 		fail(w, e)
 		return
 	}
-	v, e := s.App.Repo.ListTransactions(r.Context(), "", "")
+	v, e := s.App.Repo.ListTransactionExports(r.Context())
 	if e != nil {
 		fail(w, e)
 		return
@@ -1271,9 +1285,14 @@ func (s *Server) exportTransactions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=transactions.csv")
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"id", "account_id", "category_id", "direction", "amount_minor", "currency", "description", "occurred_on", "status", "created_by", "created_at", "updated_at"})
+	showAmounts := r.URL.Query().Get("show_amounts") == "true"
+	_ = cw.Write([]string{"account_name", "account_id", "category_name", "direction", "amount", "currency", "description", "occurred_on", "status", "created_by", "created_at", "last_modified_by", "last_modified_at"})
 	for _, t := range v {
-		_ = cw.Write([]string{t.ID, t.AccountID, t.CategoryID, t.Direction, formatInt(t.AmountMinor), t.Currency, t.Description, t.OccurredOn, t.Status, t.CreatedBy, t.CreatedAt, t.UpdatedAt})
+		amount := "***"
+		if showAmounts {
+			amount = formatCurrencyAmount(t.AmountMinor)
+		}
+		_ = cw.Write([]string{t.AccountName, t.AccountID, t.CategoryName, t.Direction, amount, t.Currency, t.Description, t.OccurredOn, t.Status, t.CreatedByName, t.CreatedAt, t.LastModifiedByName, t.LastModifiedAt})
 	}
 	cw.Flush()
 }
@@ -1305,3 +1324,14 @@ func (s *Server) exportAudit(w http.ResponseWriter, r *http.Request) {
 	cw.Flush()
 }
 func formatInt(v int64) string { return strconv.FormatInt(v, 10) }
+func formatCurrencyAmount(v int64) string {
+	sign := ""
+	if v < 0 {
+		sign, v = "-", -v
+	}
+	whole, fraction := strconv.FormatInt(v/100, 10), v%100
+	for index := len(whole) - 3; index > 0; index -= 3 {
+		whole = whole[:index] + "." + whole[index:]
+	}
+	return fmt.Sprintf("%s%s,%02d", sign, whole, fraction)
+}

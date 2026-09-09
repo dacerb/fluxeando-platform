@@ -83,6 +83,21 @@ func (s *Service) ScheduleBackup() {
 		s.Backups.Schedule()
 	}
 }
+func (s *Service) RunLifecycleBackup(ctx context.Context, actor domain.User, phase string) error {
+	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
+		return err
+	}
+	if s.Backups == nil {
+		return errors.New("backup service is unavailable")
+	}
+	if phase == "startup" {
+		return s.Backups.RunOnStartup(ctx)
+	}
+	if phase == "shutdown" {
+		return s.Backups.RunOnShutdown(ctx)
+	}
+	return errors.New("invalid backup lifecycle phase")
+}
 func (s *Service) BeginGoogleBackupAuthorization(ctx context.Context, actor domain.User) (string, error) {
 	if err := s.Require(actor, domain.RoleAdministrator); err != nil {
 		return "", err
@@ -984,6 +999,9 @@ func (s *Service) ResolveDeletionRequest(ctx context.Context, actor domain.User,
 	}
 	if decision == "approved" && (request.EntityType == "transaction" || request.EntityType == "mcp_transaction_void") {
 		if err = s.Repo.VoidTransaction(ctx, request.EntityID); err != nil {
+			return err
+		}
+		if err = s.Repo.Audit(ctx, uuid.NewString(), actor.ID, "transaction_voided", "transaction", request.EntityID, correlation, map[string]string{"status": "active"}, map[string]string{"status": "voided"}); err != nil {
 			return err
 		}
 	}

@@ -224,6 +224,29 @@ func TestImportTransactionsAndTemplateRoute(t *testing.T) {
 	if transactions[0].AmountMinor != 125000 || transactions[0].Direction != "expense" {
 		t.Fatalf("transaction = %#v", transactions[0])
 	}
+	maskedExportRequest, _ := http.NewRequest(http.MethodGet, server.URL+"/v1/exports/transactions.csv", nil)
+	maskedExportRequest.Header.Set("Authorization", "Bearer "+token)
+	maskedExportResponse, err := http.DefaultClient.Do(maskedExportRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	maskedExport, _ := io.ReadAll(maskedExportResponse.Body)
+	maskedExportResponse.Body.Close()
+	if maskedExportResponse.StatusCode != http.StatusOK || !bytes.Contains(maskedExport, []byte("account_name,account_id,category_name,direction,amount")) || !bytes.Contains(maskedExport, []byte("Cash,"+transactions[0].AccountID)) || !bytes.Contains(maskedExport, []byte("***")) || !bytes.Contains(maskedExport, []byte(",Admin,")) {
+		t.Fatalf("masked export status = %d, body = %q", maskedExportResponse.StatusCode, maskedExport)
+	}
+
+	revealedExportRequest, _ := http.NewRequest(http.MethodGet, server.URL+"/v1/exports/transactions.csv?show_amounts=true", nil)
+	revealedExportRequest.Header.Set("Authorization", "Bearer "+token)
+	revealedExportResponse, err := http.DefaultClient.Do(revealedExportRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revealedExport, _ := io.ReadAll(revealedExportResponse.Body)
+	revealedExportResponse.Body.Close()
+	if revealedExportResponse.StatusCode != http.StatusOK || !bytes.Contains(revealedExport, []byte(`"1.250,00"`)) {
+		t.Fatalf("revealed export status = %d, body = %q", revealedExportResponse.StatusCode, revealedExport)
+	}
 }
 
 func TestActivateUserRoute(t *testing.T) {
