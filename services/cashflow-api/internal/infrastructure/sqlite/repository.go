@@ -310,7 +310,11 @@ func (r *Repository) SaveBackupResult(ctx context.Context, at, lastError string)
 	return err
 }
 func (r *Repository) SaveGoogleBackupRefreshToken(ctx context.Context, encrypted []byte) error {
-	_, err := r.DB.ExecContext(ctx, "INSERT INTO backup_google_credentials(id,refresh_token,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET refresh_token=excluded.refresh_token,updated_at=excluded.updated_at", encrypted, time.Now().UTC().Format(time.RFC3339Nano))
+	statement := "INSERT INTO backup_google_credentials(id,refresh_token,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET refresh_token=excluded.refresh_token,updated_at=excluded.updated_at"
+	if r.mysql {
+		statement = "INSERT INTO backup_google_credentials(id,refresh_token,updated_at) VALUES(1,?,?) ON DUPLICATE KEY UPDATE refresh_token=VALUES(refresh_token),updated_at=VALUES(updated_at)"
+	}
+	_, err := r.DB.ExecContext(ctx, statement, encrypted, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 func (r *Repository) GoogleBackupRefreshToken(ctx context.Context) ([]byte, bool, error) {

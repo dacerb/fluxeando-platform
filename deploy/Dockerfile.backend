@@ -7,9 +7,10 @@ COPY services/cashflow-api/ ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/cashflow-api ./cmd/api
 
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates wget && addgroup -S cashflow && adduser -S -G cashflow cashflow
+RUN apk add --no-cache ca-certificates wget && addgroup -S -g 10001 cashflow && adduser -S -D -H -u 10001 -G cashflow cashflow
 WORKDIR /app
 COPY --from=build /out/cashflow-api /app/cashflow-api
+RUN mkdir -p /var/lib/fluxeando/backups/app && chown -R cashflow:cashflow /var/lib/fluxeando
 USER cashflow
 EXPOSE 8787
 ENTRYPOINT ["/app/cashflow-api"]

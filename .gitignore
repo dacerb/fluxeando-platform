@@ -13,6 +13,7 @@ apps/desktop/resources/bin/
 
 # Secretos del despliegue autoalojado.
 deploy/.env
+deploy/manifest.yaml
 deploy/secrets/*.txt
 
 # Guía local de publicación, útil para el operador pero no parte del producto.

@@ -1,94 +1,140 @@
-# Despliegue web autoalojado
+# Despliegue web autoalojado en un VPS
 
-Esta instalación mantiene tres formas de uso compatibles:
-
-- Aplicación de escritorio en macOS y Windows, con SQLite local.
-- Desarrollo web desde el repositorio, con la API local.
-- Web autoalojada en Linux con MySQL, HTTPS y MCP remoto opcional.
-
-El archivo `compose.yaml` está diseñado para la tercera opción. No sustituye ni modifica los modos local o de escritorio.
+Esta guía instala una instancia web de FLUXeando con MySQL, HTTPS automático y MCP remoto opcional. La aplicación de escritorio continúa usando SQLite local y no se modifica.
 
 ## Arquitectura
 
-Nginx es el único servicio publicado en Internet. Sirve la interfaz web y reenvía `/v1/`, `/health` y `/mcp` al backend. MySQL, la interfaz web y el backend permanecen en una red Docker interna, sin puertos publicados.
-
 ```text
-Internet → Nginx (80/443) → web / backend → MySQL
-                              └── /mcp
+Internet → Nginx (80/443) → frontend web
+                         ├→ API: /v1 y /health
+                         └→ MCP: /mcp → backend → MySQL
 ```
 
-MCP forma parte del backend: no hay un proceso ni una contraseña adicional para ese servicio. Se habilita desde Configuración → MCP, se selecciona exposición `remote` y se crea una clave específica para cada agente.
+Nginx es el único servicio publicado. El frontend, backend, MySQL y el programador de backups se comunican por una red Docker privada. No se exponen los puertos 3306 ni 8787.
 
-## Requisitos previos
+Los volúmenes persistentes son `fluxeando_mysql_data`, `fluxeando_backups`, `fluxeando_letsencrypt` y `fluxeando_certbot_webroot`. No los elimines: contienen la base, las copias y los certificados.
 
-- Un VPS Linux con Docker Engine y Docker Compose v2.
-- Un dominio, por ejemplo `fluxeando.tudominio.com`, con un registro A/AAAA que apunte al VPS.
-- Puertos TCP 80 y 443 permitidos en el firewall y en el proveedor del VPS.
-- Ningún otro servicio ocupando esos puertos.
+## Requisitos
 
-## Preparar la configuración
+- VPS Linux con Docker Engine y Docker Compose v2.
+- Dominio o subdominio con registro A (y AAAA sólo si IPv6 está configurado) apuntando al VPS.
+- Puertos TCP 80 y 443 permitidos en el proveedor y firewall.
+- Ningún servicio ocupando esos puertos.
+- Acceso SSH con permisos para ejecutar Docker.
 
-Desde la raíz del proyecto:
+## 1. Preparar el código
+
+Cloná el repositorio en el VPS y entrá en su raíz. No copies una base de datos ni secretos de otra instancia salvo que estés realizando una migración planificada.
 
 ```bash
-cp deploy/.env.example deploy/.env
-cp deploy/secrets/mysql_app_password.txt.example deploy/secrets/mysql_app_password.txt
-cp deploy/secrets/mysql_root_password.txt.example deploy/secrets/mysql_root_password.txt
-chmod 600 deploy/.env deploy/secrets/*.txt
+git clone https://github.com/dacerb/fluxeando-platform.git
+cd fluxeando-platform
+cp deploy/manifest.example.yaml deploy/manifest.yaml
 ```
 
-Editá `deploy/.env` con el dominio y un correo válido. Reemplazá los dos archivos de `deploy/secrets/` con contraseñas distintas, aleatorias y de al menos 32 caracteres. Por ejemplo:
+Editá `deploy/manifest.yaml`. Este archivo define la instalación, no el código: cada persona que aloje FLUXeando establece su propio dominio, correo, horario y retención de backups.
+
+```yaml
+instance:
+  name: fluxeando-produccion
+public:
+  domain: fluxeando.tudominio.com
+  letsencrypt_email: operaciones@tudominio.com
+database:
+  name: fluxeando
+  user: fluxeando_app
+backups:
+  time: "02:30"
+  retention_days: 30
+  timezone: America/Argentina/Buenos_Aires
+```
+
+No subas `deploy/manifest.yaml`, `deploy/.env` ni `deploy/secrets/*.txt` a Git.
+
+## 2. Generar configuración y secretos
+
+El instalador valida el manifiesto, genera `deploy/.env` y crea dos contraseñas MySQL aleatorias, distintas y locales. Requiere Node 22 o superior sólo durante este paso.
 
 ```bash
-openssl rand -base64 36 > deploy/secrets/mysql_app_password.txt
-openssl rand -base64 36 > deploy/secrets/mysql_root_password.txt
-chmod 600 deploy/secrets/*.txt
+node deploy/prepare-manifest.mjs
+chmod 600 deploy/manifest.yaml deploy/.env deploy/secrets/*.txt
 ```
 
-Los archivos `.txt` y `.env` están ignorados por Git. No los copies a tickets, logs ni chats.
+Si no tenés Node instalado en el VPS, podés ejecutar el mismo paso con Docker:
 
-## Iniciar
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/workspace -w /workspace node:22-alpine node deploy/prepare-manifest.mjs
+```
+
+El instalador se detiene si ya existe `deploy/.env`; esto evita sobrescribir por accidente una instancia ya configurada.
+
+## 3. Iniciar la instancia
+
+Comprobá primero que el DNS ya apunte al VPS. Después levantá los servicios:
 
 ```bash
 docker compose --env-file deploy/.env up -d --build
 docker compose --env-file deploy/.env ps
+docker compose --env-file deploy/.env logs -f nginx certbot backend mysql-backup
 ```
 
-Durante la emisión inicial, Nginx sólo entrega el desafío de Let’s Encrypt; el resto devuelve `503` hasta que exista un certificado válido. Esto evita publicar la aplicación sin HTTPS. Certbot obtiene y renueva el certificado de forma periódica, y Nginx recarga su configuración para usarlo.
+En la primera emisión Nginx responde el desafío de Let’s Encrypt por HTTP y mantiene la aplicación en `503` hasta que exista un certificado válido. Cuando Certbot termina, Nginx habilita HTTPS y redirige HTTP a HTTPS. Certbot intenta renovar cada 12 horas y Nginx recarga su configuración periódicamente.
 
-Comprobá el estado:
+Abrí `https://TU_DOMINIO/` y creá el administrador inicial. Verificá además:
 
 ```bash
-docker compose --env-file deploy/.env logs -f nginx certbot backend
 curl -I https://TU_DOMINIO/health
+docker compose --env-file deploy/.env ps
 ```
 
-El primer acceso a `https://TU_DOMINIO/` muestra la configuración inicial de FLUXeando. Creá el administrador desde allí.
+## 4. Activar MCP remoto
 
-## MCP remoto
+MCP es parte del backend y está disponible en `https://TU_DOMINIO/mcp`, pero permanece deshabilitado hasta configurarlo desde la aplicación:
 
 1. Ingresá como administrador.
-2. Abrí Configuración → MCP y activá agentes MCP.
-3. Seleccioná `remote` únicamente si el dominio ya responde por HTTPS.
-4. Creá una clave por agente, con un nombre reconocible y el menor permiso necesario.
-5. Configurá el agente con `https://TU_DOMINIO/mcp` y el encabezado `Authorization: Bearer ...`.
+2. Abrí **Configuración → MCP**.
+3. Activá agentes MCP y elegí exposición `remote`.
+4. Creá una clave por agente, con el mínimo permiso necesario.
+5. Configurá el agente con `https://TU_DOMINIO/mcp` y `Authorization: Bearer ...`.
 
-Las llamadas MCP se autentican por clave, pasan por HTTPS, se limitan en Nginx y quedan en la auditoría con su conexión y origen. La clave no se almacena ni se registra en texto plano.
+La clave se muestra una vez. No la guardes en el manifiesto, archivos versionados ni chats.
 
-## Operación segura
+## Backups y restauración
 
-- No publiques el puerto 3306 ni el 8787.
-- Mantené Docker, la imagen de MySQL, Nginx y Certbot actualizados de forma planificada.
-- Generá una clave MCP distinta para cada integración; revocala si se filtra o deja de usarse.
-- Respaldá el volumen `fluxeando_mysql_data` antes de actualizar. Una copia lógica puede hacerse con `mysqldump` dentro del contenedor.
-- Revisá `docker compose logs` y la auditoría de FLUXeando después de habilitar MCP remoto.
-- Para restaurar, probá primero la copia de MySQL en un servidor aislado.
+El servicio `mysql-backup` crea cada día, a la hora y zona horaria indicadas en el manifiesto, una copia lógica comprimida de MySQL en el volumen persistente `backups`. Elimina copias más antiguas que `retention_days`.
 
-## Actualizar la aplicación
+Para inspeccionarlas:
 
 ```bash
-git pull
-docker compose --env-file deploy/.env up -d --build
+docker compose --env-file deploy/.env exec mysql-backup ls -lah /var/lib/fluxeando/backups/mysql
 ```
 
-No ejecutes `docker compose down -v`: el modificador `-v` elimina los volúmenes y, con ellos, la base MySQL y los certificados.
+Además, desde Configuración → Backups se puede elegir la copia de seguridad funcional de FLUXeando. En un VPS, usá la ruta `/var/lib/fluxeando/backups/app` para que permanezca dentro del volumen permitido.
+
+Una restauración debe probarse primero en un servidor aislado. Para restaurar una copia MySQL, detené el backend, elegí el archivo correcto y ejecutá la importación únicamente después de confirmar el destino:
+
+```bash
+gunzip -c BACKUP.sql.gz | docker compose --env-file deploy/.env exec -T mysql mysql -u root -p NOMBRE_BASE
+```
+
+La restauración requiere la contraseña root, que está en `deploy/secrets/mysql_root_password.txt`. No la pegues en el historial del terminal: el cliente MySQL la solicitará de forma interactiva.
+
+Un volumen Docker protege ante recreaciones de contenedores, pero no ante pérdida completa del VPS. Copiá periódicamente el volumen de backups a un almacenamiento externo y probá una restauración.
+
+## Actualizar sin perder datos
+
+```bash
+git pull --ff-only
+docker compose --env-file deploy/.env up -d --build
+docker compose --env-file deploy/.env ps
+```
+
+No ejecutes `docker compose down -v`: la opción `-v` elimina los volúmenes y con ellos base, certificados y copias. Antes de una actualización importante, verificá que exista un backup reciente.
+
+## Diagnóstico inicial
+
+- Si Let’s Encrypt falla, comprobá DNS, puertos 80/443 y que otro proxy no los esté usando.
+- Si la web no responde, revisá `nginx`, `web` y `backend` con `docker compose ... logs`.
+- Si MySQL no inicia, verificá los secretos y el estado del volumen; no lo borres para “resolver” el problema.
+- Si MCP devuelve `404`, confirmá que esté habilitado y en modo `remote` desde Configuración.
+- Si no aparece un backup, revisá `mysql-backup`, la hora `BACKUP_TIME`, la zona horaria `TZ` y que el servicio permanezca activo.
