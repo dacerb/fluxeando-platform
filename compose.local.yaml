@@ -1,0 +1,17 @@
+# Sólo para desarrollo y validación local. Complementa compose.yaml sin tocar
+# la configuración productiva con Let's Encrypt.
+services:
+  nginx:
+    environment:
+      DOMAIN: ${DOMAIN:-fluxeando.test}
+    ports:
+      - "8080:80"
+      - "8443:443"
+    entrypoint: ["/bin/sh", "-c", "envsubst '$$DOMAIN' < /etc/nginx/templates/local.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/local.conf.template:/etc/nginx/templates/local.conf.template:ro
+      - ./deploy/local/certs:/etc/letsencrypt/live/${DOMAIN:-fluxeando.test}:ro
+
+  certbot:
+    profiles: ["certbot"]

@@ -15,6 +15,7 @@ apps/desktop/resources/bin/
 deploy/.env
 deploy/manifest.yaml
 deploy/secrets/*.txt
+deploy/local/
 
 # Guía local de publicación, útil para el operador pero no parte del producto.
 RELEASE-LOCAL.md

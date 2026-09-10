@@ -22,6 +22,19 @@ Los volúmenes persistentes son `fluxeando_mysql_data`, `fluxeando_backups`, `fl
 - Ningún servicio ocupando esos puertos.
 - Acceso SSH con permisos para ejecutar Docker.
 
+## Prueba local con Podman
+
+Para validar la pila sin dominio público, agregá `127.0.0.1 fluxeando.test` a tu archivo hosts, prepará los secretos y generá un certificado local:
+
+```bash
+cp deploy/manifest.example.yaml deploy/manifest.yaml
+node deploy/prepare-manifest.mjs
+./deploy/prepare-local-tls.sh fluxeando.test
+podman compose --env-file deploy/.env -f compose.yaml -f compose.local.yaml up -d --build
+```
+
+Abrí `https://fluxeando.test:8443`. El navegador advertirá que el certificado es autofirmado; es normal en esta prueba local. Para detenerla conservando datos: `podman compose --env-file deploy/.env -f compose.yaml -f compose.local.yaml down`.
+
 ## 1. Preparar el código
 
 Cloná el repositorio en el VPS y entrá en su raíz. No copies una base de datos ni secretos de otra instancia salvo que estés realizando una migración planificada.
