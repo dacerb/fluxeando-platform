@@ -354,7 +354,7 @@ body[data-accent='graphite'] .sidebar-brand strong,body[data-accent='graphite'] 
 .settings-container>.settings-card,
 .app-content>.settings-card{
   width:100%;
-  max-width:1280px;
+  max-width:none!important;
   margin:0!important;
   padding:0!important;
   border-radius:20px!important;
