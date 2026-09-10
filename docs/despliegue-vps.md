@@ -30,7 +30,7 @@ Para validar la pila sin dominio público, agregá `127.0.0.1 fluxeando.test` a 
 cp deploy/manifest.example.yaml deploy/manifest.yaml
 node deploy/prepare-manifest.mjs
 ./deploy/prepare-local-tls.sh fluxeando.test
-podman compose --env-file deploy/.env -f compose.yaml -f compose.local.yaml up -d --build
+HTTP_PORT=8080 HTTPS_PORT=8443 podman compose --env-file deploy/.env -f compose.yaml -f compose.local.yaml up -d --build
 ```
 
 Abrí `https://fluxeando.test:8443`. El navegador advertirá que el certificado es autofirmado; es normal en esta prueba local. Para detenerla conservando datos: `podman compose --env-file deploy/.env -f compose.yaml -f compose.local.yaml down`.

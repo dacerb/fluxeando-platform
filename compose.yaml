@@ -29,7 +29,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile.backend
     restart: unless-stopped
-    command: ["/app/cashflow-api", "-addr", "0.0.0.0:8787", "-mysql-host", "mysql", "-mysql-port", "3306", "-mysql-database", "${MYSQL_DATABASE}", "-mysql-username", "${MYSQL_USER}"]
+    command: ["-addr", "0.0.0.0:8787", "-mysql-host", "mysql", "-mysql-port", "3306", "-mysql-database", "${MYSQL_DATABASE}", "-mysql-username", "${MYSQL_USER}"]
     environment:
       CASHFLOW_MYSQL_PASSWORD_FILE: /run/secrets/mysql_app_password
       CASHFLOW_TRUST_PROXY: "true"
@@ -77,8 +77,8 @@ services:
       web:
         condition: service_started
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./deploy/nginx/entrypoint.sh:/usr/local/bin/fluxeando-nginx:ro
