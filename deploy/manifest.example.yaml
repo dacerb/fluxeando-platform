@@ -1,0 +1,16 @@
+# Copiá este archivo como deploy/manifest.yaml. No se versiona.
+instance:
+  name: fluxeando-produccion
+
+public:
+  domain: fluxeando.example.com
+  letsencrypt_email: admin@example.com
+
+database:
+  name: fluxeando
+  user: fluxeando_app
+
+backups:
+  time: "02:30"
+  retention_days: 30
+  timezone: America/Argentina/Buenos_Aires

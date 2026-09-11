@@ -58,7 +58,11 @@ func main() {
 		repo, e = sqlite.Open(*dbPath)
 	}
 	if e != nil {
-		log.Error("database startup failed", "level", "critical", "component", "api", "layer", "infrastructure", "error", strings.ReplaceAll(e.Error(), os.Getenv("CASHFLOW_MYSQL_PASSWORD"), "[redacted]"))
+		errorMessage := e.Error()
+		if passwordFromEnvironment := os.Getenv("CASHFLOW_MYSQL_PASSWORD"); passwordFromEnvironment != "" {
+			errorMessage = strings.ReplaceAll(errorMessage, passwordFromEnvironment, "[redacted]")
+		}
+		log.Error("database startup failed", "level", "critical", "component", "api", "layer", "infrastructure", "error", errorMessage)
 		os.Exit(1)
 	}
 	defer repo.Close()

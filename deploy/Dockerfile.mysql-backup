@@ -1,0 +1,11 @@
+FROM mysql:8.4
+
+USER root
+
+# La imagen oficial de MySQL se basa en Oracle Linux y ya incluye el cliente
+# mysqldump. gzip y find se usan para comprimir y rotar copias locales.
+RUN microdnf install -y gzip findutils && microdnf clean all
+COPY deploy/mysql-backup.sh /usr/local/bin/mysql-backup
+RUN chmod 0555 /usr/local/bin/mysql-backup
+
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/mysql-backup"]

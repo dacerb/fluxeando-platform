@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS saved_filters (id VARCHAR(64) PRIMARY KEY, user_id VA
 CREATE TABLE IF NOT EXISTS remembered_sessions (token_hash VARCHAR(128) PRIMARY KEY, user_id VARCHAR(64) NOT NULL, expires_at VARCHAR(64) NOT NULL, created_at VARCHAR(64) NOT NULL, INDEX remembered_sessions_user_id (user_id), CONSTRAINT remembered_sessions_user_fk FOREIGN KEY (user_id) REFERENCES users(id));
 CREATE TABLE IF NOT EXISTS mcp_settings (id INT PRIMARY KEY, enabled BOOLEAN NOT NULL DEFAULT FALSE, exposure_mode VARCHAR(16) NOT NULL DEFAULT 'local', updated_at VARCHAR(64) NOT NULL);
 CREATE TABLE IF NOT EXISTS mcp_api_keys (id VARCHAR(64) PRIMARY KEY, name VARCHAR(255) NOT NULL, user_id VARCHAR(64) NOT NULL, secret_hash TEXT NOT NULL, scopes VARCHAR(255) NOT NULL, created_at VARCHAR(64) NOT NULL, last_used_at VARCHAR(64) NULL, revoked_at VARCHAR(64) NULL, UNIQUE KEY mcp_api_keys_secret_hash (secret_hash(191)), INDEX mcp_api_keys_user_id (user_id), CONSTRAINT mcp_api_keys_user_fk FOREIGN KEY (user_id) REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS backup_settings (id INT PRIMARY KEY, provider VARCHAR(32) NOT NULL DEFAULT '', filesystem_path TEXT NOT NULL, filename_prefix VARCHAR(128) NOT NULL DEFAULT 'fluxeando-backup', retention_count INT NOT NULL DEFAULT 3, delay_seconds INT NOT NULL DEFAULT 60, backup_on_startup BOOLEAN NOT NULL DEFAULT TRUE, backup_on_shutdown BOOLEAN NOT NULL DEFAULT TRUE, google_folder_id VARCHAR(255) NOT NULL DEFAULT '', last_backup_at VARCHAR(64) NOT NULL DEFAULT '', last_error TEXT NOT NULL, updated_at VARCHAR(64) NOT NULL);
+CREATE TABLE IF NOT EXISTS backup_google_credentials (id INT PRIMARY KEY, refresh_token BLOB NOT NULL, updated_at VARCHAR(64) NOT NULL);
 `)
 	if err != nil {
 		return err
@@ -58,7 +60,10 @@ CREATE TABLE IF NOT EXISTS mcp_api_keys (id VARCHAR(64) PRIMARY KEY, name VARCHA
 	if _, err = r.DB.ExecContext(ctx, "INSERT IGNORE INTO mcp_settings(id,enabled,exposure_mode,updated_at) VALUES (1,FALSE,'local',UTC_TIMESTAMP())"); err != nil {
 		return err
 	}
-	for version := 1; version <= 9; version++ {
+	if _, err = r.DB.ExecContext(ctx, "INSERT IGNORE INTO backup_settings(id,updated_at) VALUES (1,UTC_TIMESTAMP())"); err != nil {
+		return err
+	}
+	for version := 1; version <= 14; version++ {
 		if _, err = r.DB.ExecContext(ctx, "INSERT INTO schema_migrations(version, applied_at) VALUES (?, UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE version=version", version); err != nil {
 			return err
 		}
