@@ -112,6 +112,8 @@ MCP es parte del backend y está disponible en `https://TU_DOMINIO/mcp`, pero pe
 
 La clave se muestra una vez. No la guardes en el manifiesto, archivos versionados ni chats.
 
+En la prueba local seleccioná también `remote`: el proxy es quien expone MCP. La URL correcta es `https://fluxeando.test:8443/mcp`; no uses `127.0.0.1:8787`, ya que ese puerto queda dentro de la red privada de contenedores. La guía de conexión en la interfaz web muestra automáticamente el dominio y puerto actuales.
+
 ## Backups y restauración
 
 El servicio `mysql-backup` crea cada día, a la hora y zona horaria indicadas en el manifiesto, una copia lógica comprimida de MySQL en el volumen persistente `backups`. Elimina copias más antiguas que `retention_days`.
