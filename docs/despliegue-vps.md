@@ -146,6 +146,31 @@ docker compose --env-file deploy/.env ps
 
 No ejecutes `docker compose down -v`: la opción `-v` elimina los volúmenes y con ellos base, certificados y copias. Antes de una actualización importante, verificá que exista un backup reciente.
 
+## Iniciar, detener y eliminar una instancia autoalojada
+
+Usá estos comandos desde la raíz del repositorio y con el mismo archivo `deploy/.env` de la instancia.
+
+Para iniciar o volver a iniciar todos los servicios:
+
+```bash
+docker compose --env-file deploy/.env up -d --build
+docker compose --env-file deploy/.env ps
+```
+
+Para detener todos los contenedores sin perder la base, certificados ni backups:
+
+```bash
+docker compose --env-file deploy/.env down
+```
+
+Para eliminar por completo la instancia, incluidos los volúmenes de MySQL, backups y certificados:
+
+```bash
+docker compose --env-file deploy/.env down -v --remove-orphans
+```
+
+El último comando es irreversible para esa instancia. Antes de ejecutarlo, exportá y verificá una copia de MySQL y guardá los backups fuera del VPS. No uses comandos globales como `docker system prune -a` o `podman system prune -a`: pueden borrar recursos de otros proyectos alojados en el mismo servidor.
+
 ## Diagnóstico inicial
 
 - Si Let’s Encrypt falla, comprobá DNS, puertos 80/443 y que otro proxy no los esté usando.
