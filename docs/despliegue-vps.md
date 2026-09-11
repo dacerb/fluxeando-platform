@@ -81,24 +81,39 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/workspace -w /workspace no
 
 El instalador se detiene si ya existe `deploy/.env`; esto evita sobrescribir por accidente una instancia ya configurada.
 
-## 3. Iniciar la instancia
+## 3. Operación rápida en el VPS
 
-Comprobá primero que el DNS ya apunte al VPS. Después levantá los servicios:
+Ejecutá estos comandos desde la raíz del repositorio. Elegí **una** columna según el runtime instalado; Docker Compose y Podman Compose usan la misma configuración.
 
-```bash
-docker compose --env-file deploy/.env up -d --build
-docker compose --env-file deploy/.env ps
-docker compose --env-file deploy/.env logs -f nginx certbot backend mysql-backup
-```
+| Acción | Docker Compose | Podman Compose |
+|---|---|---|
+| Iniciar por primera vez o reconstruir | `docker compose --env-file deploy/.env up -d --build` | `podman compose --env-file deploy/.env up -d --build` |
+| Ver estado | `docker compose --env-file deploy/.env ps` | `podman compose --env-file deploy/.env ps` |
+| Ver logs | `docker compose --env-file deploy/.env logs -f nginx certbot backend mysql-backup` | `podman compose --env-file deploy/.env logs -f nginx certbot backend mysql-backup` |
+| Detener y conservar datos | `docker compose --env-file deploy/.env down` | `podman compose --env-file deploy/.env down` |
+| Actualizar aplicación | `git pull --ff-only` y luego `docker compose --env-file deploy/.env up -d --build` | `git pull --ff-only` y luego `podman compose --env-file deploy/.env up -d --build` |
 
-En la primera emisión Nginx responde el desafío de Let’s Encrypt por HTTP y mantiene la aplicación en `503` hasta que exista un certificado válido. Cuando Certbot termina, Nginx habilita HTTPS y redirige HTTP a HTTPS. Certbot intenta renovar cada 12 horas y Nginx recarga su configuración periódicamente.
+En la primera emisión Nginx responde el desafío de Let’s Encrypt por HTTP y mantiene la aplicación en `503` hasta que exista un certificado válido. Cuando Certbot termina, Nginx habilita HTTPS y redirige HTTP a HTTPS.
 
-Abrí `https://TU_DOMINIO/` y creá el administrador inicial. Verificá además:
+Abrí `https://TU_DOMINIO/`, creá el administrador inicial y verificá:
 
 ```bash
 curl -I https://TU_DOMINIO/health
-docker compose --env-file deploy/.env ps
 ```
+
+### Eliminar completamente una instancia
+
+Usalo sólo si querés borrar esa instalación y sus datos. Elimina contenedores, red, base MySQL, backups y certificados:
+
+```bash
+# Docker
+docker compose --env-file deploy/.env down -v --remove-orphans
+
+# Podman
+podman compose --env-file deploy/.env down -v --remove-orphans
+```
+
+Este paso es irreversible. Antes, exportá y verificá una copia de MySQL y guardá los backups fuera del VPS. No uses `docker system prune -a` ni `podman system prune -a`: son comandos globales y pueden borrar recursos de otros proyectos.
 
 ## 4. Activar MCP remoto
 
@@ -135,41 +150,6 @@ gunzip -c BACKUP.sql.gz | docker compose --env-file deploy/.env exec -T mysql my
 La restauración requiere la contraseña root, que está en `deploy/secrets/mysql_root_password.txt`. No la pegues en el historial del terminal: el cliente MySQL la solicitará de forma interactiva.
 
 Un volumen Docker protege ante recreaciones de contenedores, pero no ante pérdida completa del VPS. Copiá periódicamente el volumen de backups a un almacenamiento externo y probá una restauración.
-
-## Actualizar sin perder datos
-
-```bash
-git pull --ff-only
-docker compose --env-file deploy/.env up -d --build
-docker compose --env-file deploy/.env ps
-```
-
-No ejecutes `docker compose down -v`: la opción `-v` elimina los volúmenes y con ellos base, certificados y copias. Antes de una actualización importante, verificá que exista un backup reciente.
-
-## Iniciar, detener y eliminar una instancia autoalojada
-
-Usá estos comandos desde la raíz del repositorio y con el mismo archivo `deploy/.env` de la instancia.
-
-Para iniciar o volver a iniciar todos los servicios:
-
-```bash
-docker compose --env-file deploy/.env up -d --build
-docker compose --env-file deploy/.env ps
-```
-
-Para detener todos los contenedores sin perder la base, certificados ni backups:
-
-```bash
-docker compose --env-file deploy/.env down
-```
-
-Para eliminar por completo la instancia, incluidos los volúmenes de MySQL, backups y certificados:
-
-```bash
-docker compose --env-file deploy/.env down -v --remove-orphans
-```
-
-El último comando es irreversible para esa instancia. Antes de ejecutarlo, exportá y verificá una copia de MySQL y guardá los backups fuera del VPS. No uses comandos globales como `docker system prune -a` o `podman system prune -a`: pueden borrar recursos de otros proyectos alojados en el mismo servidor.
 
 ## Diagnóstico inicial
 
