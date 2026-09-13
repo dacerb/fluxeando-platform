@@ -643,6 +643,12 @@ body:has(.auth-shell){background:#f4f1ed}
 body[data-color-mode='dark'] .auth-shell{--auth-ink:#f5eee9;--auth-muted:#c9bdb6;--auth-surface:#292422;--auth-line:#4b413c;--auth-accent:#f08a58;background:radial-gradient(circle at 12% 12%,#71391f 0,transparent 26rem),radial-gradient(circle at 92% 88%,#344135 0,transparent 28rem),#191615}body[data-color-mode='dark'] .auth-card{background:#292422e8;border-color:#ffffff12;box-shadow:0 28px 70px #00000055}body[data-color-mode='dark'] .auth-topbar .MuiIconButton-root,body[data-color-mode='dark'] .auth-card input{background:#211d1b;color:var(--auth-ink);border-color:var(--auth-line)}body[data-color-mode='dark'] .auth-topbar .MuiIconButton-root{color:var(--auth-ink)}body[data-color-mode='dark'] .auth-card button{background:var(--auth-accent);color:#31170d}body[data-color-mode='dark'] .auth-card button:hover:not(:disabled){background:#ff9d6d}body[data-color-mode='dark'] .auth-card button.secondary,body[data-color-mode='dark'] .auth-card .auth-secondary-action{color:var(--auth-ink);background:transparent;border-color:var(--auth-line)}body[data-color-mode='dark'] .auth-card .brand-logo{background:#171412}
 @media(max-width:700px){.auth-shell{padding:24px 16px;place-items:start center}.auth-card{padding:24px;border-radius:22px}.auth-topbar{margin:-4px -6px 24px;flex-wrap:wrap;justify-content:flex-end}.auth-card .brand{margin-bottom:28px}.auth-card h1{font-size:1.8rem}}
 
+/* Las columnas son controles de detalle; el tema no debe pintarlas como botones primarios. */
+.app-content button.daily-column{background:transparent!important;color:inherit!important}
+.app-content button.daily-column:hover:not(:disabled),.app-content button.daily-column:focus-visible{background:var(--m3-surface-container-high)!important}
+.analytics-ranking-expense .ranking-track i{background:#dc9876}
+.daily-column.is-empty{cursor:default;opacity:.55}
+
 /* Debe prevalecer incluso sobre las variantes contenidas de MUI. */
 .app-shell .MuiButtonBase-root.Mui-disabled,
 .app-shell button[disabled]{background:var(--m3-surface-container-high)!important;color:var(--m3-on-surface-variant)!important;border-color:var(--m3-outline-variant)!important;opacity:.58!important;box-shadow:none!important;cursor:not-allowed!important}

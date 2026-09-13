@@ -2357,3 +2357,13 @@ body .logger-switch .switch-state-code {
 .settings-section-content > .MuiFormControlLabel-root .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
   background: #fff !important;
 }
+
+/* El color del ranking corresponde a la dirección, no a la posición de la tarjeta. */
+body .app-shell .analytics-ranking-income .ranking-track i{background-color:#8aa522!important}
+body .app-shell .analytics-ranking-expense .ranking-track i{background-color:#dc9876!important}
+body .app-shell .app-content .analytics-card button.daily-column{background:transparent!important;color:inherit!important}
+body .app-shell .app-content .analytics-card button.daily-column:hover:not(:disabled),body .app-shell .app-content .analytics-card button.daily-column:focus-visible{background:var(--m3-surface-container-high)!important}
+@media print{
+  body .app-shell .analytics-ranking-income .ranking-track i{background-color:#788f22!important}
+  body .app-shell .analytics-ranking-expense .ranking-track i{background-color:#b24e2e!important}
+}

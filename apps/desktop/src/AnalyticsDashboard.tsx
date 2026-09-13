@@ -50,7 +50,7 @@ export default function AnalyticsDashboard({ movements, accounts, hidden }: {
         const values = scoped.filter(m => m.occurredOn.startsWith(month));
         return { month, label: new Date(2000, index, 1).toLocaleDateString('es-AR', { month: 'short' }).replace('.', ''), income: values.filter(m => m.direction === 'income').reduce((sum, m) => sum + m.amountMinor, 0), expense: values.filter(m => m.direction === 'expense').reduce((sum, m) => sum + m.amountMinor, 0) };
     }), [scoped, year]);
-    useEffect(() => { if (!monthly.some(m => m.month === selectedMonth))
+    useEffect(() => { if (!currency) return; if (!monthly.some(m => m.month === selectedMonth))
         setSelectedMonth(monthly.find(m => m.income || m.expense)?.month ?? monthly[0]?.month ?? ''); }, [monthly, selectedMonth]);
     const monthMovements = scoped.filter(m => m.occurredOn.startsWith(selectedMonth));
     const daysInMonth = selectedMonth ? new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0).getDate() : 31;
@@ -131,7 +131,7 @@ export default function AnalyticsDashboard({ movements, accounts, hidden }: {
     } | null>((record, item) => !record || item.expense >= record.expense ? item : record, null);
     const recordMonthLabel = (month?: string) => month ? new Date(`${month}-01T12:00:00`).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }) : 'Sin datos';
     const comparisonMax = Math.max(currentMonthValues.income, currentMonthValues.expense, historicalIncomeRecord?.income ?? 0, historicalExpenseRecord?.expense ?? 0, 1);
-    const categoryTotals = (direction: string) => Object.entries(scoped.filter(m => m.direction === direction).reduce<Record<string, number>>((totals, m) => { const key = m.categoryName || 'Sin categoría'; totals[key] = (totals[key] ?? 0) + m.amountMinor; return totals; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const categoryTotals = (direction: string) => Object.entries(monthMovements.filter(m => m.direction === direction).reduce<Record<string, number>>((totals, m) => { const key = m.categoryName || 'Sin categoría'; totals[key] = (totals[key] ?? 0) + m.amountMinor; return totals; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const monthlyCategoryTotals = (direction: string) => Object.entries(monthMovements.filter(m => m.direction === direction).reduce<Record<string, {
         amount: number;
         count: number;
@@ -139,15 +139,15 @@ export default function AnalyticsDashboard({ movements, accounts, hidden }: {
     const ranking = (items: [
         string,
         number
-    ][], title: string) => <div className="analytics-ranking">
+    ][], title: string, direction: 'income' | 'expense') => <div className={`analytics-ranking analytics-ranking-${direction}`}>
 <h3>{title}</h3>
-<p className="items">Acumulado de {year}</p>{items.length ? items.map(([name, value]) => <div className="ranking-row" key={name}>
+<p className="items">{selectedMonth} · acumulado del mes seleccionado</p>{items.length ? items.map(([name, value]) => <div className="ranking-row" key={name}>
 <span>{name}</span>
 <div className="ranking-track">
 <i style={{ width: `${Math.max(8, value / (items[0][1] || 1) * 100)}%` }}/>
 </div>
 <strong>{money(value, currency, hidden)}</strong>
-</div>) : <p className="items">Sin movimientos para el año seleccionado.</p>}</div>;
+</div>) : <p className="items">Sin movimientos en el mes seleccionado.</p>}</div>;
     return <section className="card analytics-card" data-report-period={selectedMonth}>
     <h1 className="analytics-report-title">
 <img className="analytics-report-logo" src={fluxeandoIcon} alt="" aria-hidden="true"/>
@@ -282,7 +282,7 @@ export default function AnalyticsDashboard({ movements, accounts, hidden }: {
 <div className="chart-title">
 <div>
 <h3>Movimientos por día</h3>
-<span>{selectedMonth} · {selectedAccount}</span>
+<span>{selectedMonth} · ingresos y egresos diarios · {selectedAccount}</span>
 </div>
 <div className="chart-legend">
 <span>
@@ -293,13 +293,13 @@ export default function AnalyticsDashboard({ movements, accounts, hidden }: {
 <i className="legend-net"/>Balance neto</span>
 </div>
 </div>
-<div className="daily-chart">{daily.map(item => <button className="daily-column" key={item.day} title={hoverSummary(item)} onClick={() => item.values.length && setSelectedDay(item.day)} disabled={!item.values.length} aria-label={item.values.length ? `Ver detalle del día ${item.day}` : `Día ${item.day} sin movimientos`}>
+<div className="daily-chart">{daily.map(item => <div className={`daily-column${item.values.length ? '' : ' is-empty'}`} key={item.day} title={hoverSummary(item)} role={item.values.length ? 'button' : undefined} tabIndex={item.values.length ? 0 : -1} onClick={() => item.values.length && setSelectedDay(item.day)} onKeyDown={event => { if (item.values.length && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelectedDay(item.day); } }} aria-label={item.values.length ? `Ver detalle del día ${item.day}` : `Día ${item.day} sin movimientos`}>
 <span className="daily-bars">
 <i className="bar-income" style={{ height: `${item.income / dailyMax * 100}%` }}/>
 <i className="bar-expense" style={{ height: `${item.expense / dailyMax * 100}%` }}/>
 </span>
 <small>{item.day}</small>
-</button>)}</div>
+</div>)}</div>
 <svg className="daily-trend-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Evolución diaria del balance neto">
 <polyline points={dailyTrendPoints}/>
 </svg>
@@ -369,7 +369,7 @@ export default function AnalyticsDashboard({ movements, accounts, hidden }: {
 <span>Egreso {year}</span>
 </div>
 </div>
-</div>{ranking(categoryTotals('expense'), 'Top 5 categorías con más egresos')}{ranking(categoryTotals('income'), 'Top 5 categorías con más ingresos')}</div>
+</div>{ranking(categoryTotals('expense'), 'Top 5 categorías con más egresos', 'expense')}{ranking(categoryTotals('income'), 'Top 5 categorías con más ingresos', 'income')}</div>
 </div>
       <section className="analytics-yearly-daily-report">
 <h3>Detalle diario del año</h3>
